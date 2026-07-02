@@ -1,0 +1,76 @@
+# NV012 Contract Obligation Profile — ATTESTABLE DRAFT (fixture for U5 tests).
+#
+# Self-contained: declares the cmmc:Obligation individuals the Order Compiler
+# resolves (rule_library.load_obligations reads these). Unlike the canonical
+# order-compiler/obligations.ttl (whose OBL-CMMC-L2 expands to all 110 controls),
+# this draft is the Phase-I Tier-1 slice: every environment obligation derives
+# ONLY controls that a structural/tier1.ttl module claims, so a full-coverage
+# Order can actually be built. Union of derived controls = the 22 Tier-1-claimed
+# controls exactly.
+#
+# The plain deliverable (no cmmc:dataMarker) resolves to {} and forces the
+# officer's explicit "no environment control" affirmation. A CUI/ITAR deliverable
+# is intentionally absent here — the spillover path is exercised against the
+# canonical obligations.ttl in tests/test_cop.py.
+
+@prefix cmmc: <http://dynamicalsystems.group/ontology/cmmc#> .
+@prefix ce:   <http://dynamicalsystems.group/compliance-engine/> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+ce:COP-NV012 a prov:Entity ;
+    rdfs:label "Contract Obligation Profile — DLA26BZ03-NV012 (Tier 1 / IL4 draft)" ;
+    cmmc:attestedBy ce:role-ComplianceOfficer ;
+    prov:wasDerivedFrom ce:contract-NV012-topic , ce:contract-NV012-QA .
+
+# --- environment obligations: these DRIVE the Order -------------------------
+
+ce:OBL-NV012-IDENTITY a cmmc:Obligation ;
+    cmmc:obligationType "personnel" ;
+    cmmc:sourceRef "NV012 Q44: US-person MFA to the CUI boundary" ;
+    cmmc:derivesControls cmmc:IA.L2-3.5.3 , cmmc:IA.L2-3.5.2 , cmmc:IA.L2-3.5.4 .
+
+ce:OBL-NV012-CRYPTO a cmmc:Obligation ;
+    cmmc:obligationType "data" ;
+    cmmc:sourceRef "NV012 topic ITAR / Q44: FIPS-validated crypto, keys, CUI at rest" ;
+    cmmc:dataMarker "CUI" ;
+    cmmc:derivesControls cmmc:SC.L2-3.13.11 , cmmc:SC.L2-3.13.10 , cmmc:SC.L2-3.13.16 .
+
+ce:OBL-NV012-ACCESS a cmmc:Obligation ;
+    cmmc:obligationType "data" ;
+    cmmc:sourceRef "NV012 Q30/Q36: CUI access + flow control, least privilege" ;
+    cmmc:dataMarker "CUI" ;
+    cmmc:derivesControls cmmc:AC.L2-3.1.1 , cmmc:AC.L2-3.1.2 , cmmc:AC.L2-3.1.5 , cmmc:AC.L2-3.1.3 .
+
+ce:OBL-NV012-RESIDENCY a cmmc:Obligation ;
+    cmmc:obligationType "environment" ;
+    cmmc:sourceRef "NV012 topic ITAR 120.54: US data residency / boundary protection" ;
+    cmmc:derivesControls cmmc:SC.L2-3.13.1 .
+
+ce:OBL-NV012-AUDIT a cmmc:Obligation ;
+    cmmc:obligationType "environment" ;
+    cmmc:sourceRef "NV012 Q7/Q46: audit-ready, traceable log retention" ;
+    cmmc:derivesControls cmmc:AU.L2-3.3.1 , cmmc:AU.L2-3.3.2 , cmmc:AU.L2-3.3.5 .
+
+ce:OBL-NV012-CONFIG a cmmc:Obligation ;
+    cmmc:obligationType "environment" ;
+    cmmc:sourceRef "NV012 Q53: hardened, least-functionality baseline (IaC)" ;
+    cmmc:derivesControls cmmc:CM.L2-3.4.1 , cmmc:CM.L2-3.4.2 , cmmc:CM.L2-3.4.6 , cmmc:CM.L2-3.4.7 .
+
+ce:OBL-NV012-MONITOR a cmmc:Obligation ;
+    cmmc:obligationType "environment" ;
+    cmmc:sourceRef "NV012 Q53: security alert monitoring and response" ;
+    cmmc:derivesControls cmmc:SI.L2-3.14.3 , cmmc:SI.L2-3.14.6 .
+
+ce:OBL-NV012-PHYS a cmmc:Obligation ;
+    cmmc:obligationType "environment" ;
+    cmmc:sourceRef "NV012: physical protection (CSP-inherited, Google IL4 DC)" ;
+    cmmc:derivesControls cmmc:PE.L2-3.10.1 , cmmc:PE.L2-3.10.2 .
+
+# --- deliverable obligation: TAGGED, not provisioned (no dataMarker -> {}) ----
+
+ce:OBL-NV012-DELIV-TOOL a cmmc:Obligation ;
+    cmmc:obligationType "deliverable" ;
+    cmmc:sourceRef "NV012 Q7/Q46: the SFFAS-47 tool deliverable itself" ;
+    rdfs:comment "About the DELIVERABLE, not DSG's environment. Resolves to {} -> forces a 'no environment control' affirmation." .
