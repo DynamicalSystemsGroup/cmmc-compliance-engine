@@ -250,14 +250,32 @@ def _do_bom(state, ds, output_dir: Path):
     return bom
 
 
-def _ssp_hook() -> None:
-    """SSP stub — U12 wiring is finished at integration."""
+def _ssp_hook(output_dir: Path, *, ds=None, audit_report=None, bom=None) -> None:
+    """Render the SSP (documents/ssp.py, U12) into `<output-dir>/ssp.md`.
+
+    In the demo, `ds`/`audit_report`/`bom` come live from the run so the colophon
+    carries the real SPRS line + BOM artifact hashes. Standalone (`ds is None`)
+    renders from the persisted `engine.trig` with the fallback colophon. The
+    ImportError guard keeps the command from ever hard-crashing if the module is
+    somehow absent.
+    """
     try:
-        import documents.ssp  # noqa: F401
+        from documents.ssp import compile_ssp_from_run
     except ImportError:
         typer.echo("SSP: pending U12 (documents/ssp.py not yet available)")
         return
-    typer.echo("SSP: documents.ssp present — full SSP rendering wired at integration")
+
+    dataset_path = _engine_trig(output_dir)
+    if ds is None:
+        ds = _load_ds(output_dir)  # standalone: reload the persisted dataset
+
+    md = compile_ssp_from_run(ds, audit_report=audit_report, bom=bom,
+                              dataset_path=dataset_path)
+    ssp_path = output_dir / "ssp.md"
+    ssp_path.write_text(md)
+    has_banner = "NON-EVIDENTIARY" in md
+    typer.echo(f"SSP: wrote {ssp_path} "
+               f"(NON-EVIDENTIARY banner: {'present' if has_banner else 'absent'})")
 
 
 # ---------------------------------------------------------------------------
@@ -353,9 +371,9 @@ def bom_cmd(output_dir: _OUT = "output") -> None:
 
 @app.command("ssp")
 def ssp_cmd(output_dir: _OUT = "output") -> None:
-    """SSP stub (pending U12)."""
-    _ensure_out(output_dir)
-    _ssp_hook()
+    """Render the SSP from the persisted dataset (graceful skip if U12 absent)."""
+    out = _ensure_out(output_dir)
+    _ssp_hook(out)
 
 
 def _print_audit_summary(report) -> None:
@@ -422,11 +440,11 @@ def demo(
     typer.echo(f"[5/6 bom] {bom.bom_hash} evidentiary_status={bom.evidentiary_status} "
                f"-> {out / 'bom.json'}")
 
-    # 6. SSP (stub until U12 wiring at integration).
+    # 6. SSP — render the real document from this run's audit + BOM.
     typer.echo("[6/6 ssp]")
-    _ssp_hook()
+    _save_ds(ds, out)                      # persist first so ssp's dataset path resolves
+    _ssp_hook(out, ds=ds, audit_report=report, bom=bom)
 
-    _save_ds(ds, out)
     _dump_run_state(state, out)
 
 

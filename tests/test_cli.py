@@ -48,6 +48,13 @@ def test_demo_all_covered_runs_full_chain(tmp_path):
     # Every required control is MET in the BOM (full coverage).
     assert all(row["status"] == "MET" for row in bom["control_mapping"])
 
+    # SSP rendered from the run — NON-EVIDENTIARY banner (R12) + real colophon.
+    assert "SSP: wrote" in res.output
+    ssp = (tmp_path / "ssp.md").read_text()
+    assert "NON-EVIDENTIARY" in ssp                       # R12 banner
+    assert "SPRS summary: score 110 (Final)" in ssp        # ties SSP to the audit
+    assert "contradictions: 0" in ssp
+
 
 # ---------------------------------------------------------------------------
 # demo — gap set stops at Gate 1
@@ -58,8 +65,9 @@ def test_demo_gap_stops_at_gate1(tmp_path):
     assert res.exit_code != 0
     assert "Gate 1 REFUSED" in res.output
     assert "AC.L2-3.1.12" in res.output          # the named missing control
-    # Factory never ran → no BOM written.
+    # Factory never ran → no BOM and no SSP written.
     assert not (tmp_path / "bom.json").exists()
+    assert not (tmp_path / "ssp.md").exists()
 
 
 # ---------------------------------------------------------------------------
@@ -79,6 +87,10 @@ def test_demo_contradiction_reports_r13(tmp_path):
     assert "IA.L2-3.5.3" in contradicted
     assert "IA.L2-3.5.3" in audit["met_control_ids"]
     assert (tmp_path / "bom.json").exists()
+    # SSP colophon reflects the contradiction.
+    ssp = (tmp_path / "ssp.md").read_text()
+    assert "contradictions: 1" in ssp
+    assert "NON-EVIDENTIARY" in ssp
 
 
 # ---------------------------------------------------------------------------
