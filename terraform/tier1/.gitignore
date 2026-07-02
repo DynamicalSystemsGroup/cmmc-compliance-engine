@@ -1,0 +1,8 @@
+# Terraform working files — never commit provider caches / state / plans.
+.terraform/
+.terraform.tfstate.lock.info
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+# Keep .terraform.lock.hcl (pins provider versions) tracked.
