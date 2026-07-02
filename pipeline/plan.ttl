@@ -1,6 +1,7 @@
-# Factory SOP / Order process model (p-plan) — SCAFFOLD.
-# Port ADCS-lifecycle-demo/pipeline/plan.ttl. Steps = the Factory stages in
-# pipeline/DESIGN.md. The Order is the input; the BOM is the output.
+# Factory SOP / Order process model (p-plan).
+# Steps = the Factory stages in pipeline/DESIGN.md and STEP_NAMES in
+# pipeline/plan_execution.py — the two MUST stay in lockstep (ce:step-<name>).
+# The Order is the input; the signed compliance BOM is the output.
 
 @prefix ce:     <http://dynamicalsystems.group/compliance-engine/> .
 @prefix p-plan: <http://purl.org/net/p-plan#> .
@@ -11,21 +12,39 @@ ce:SOP-CMMC-TIER1-PROVISION a p-plan:Plan ;
 
 ce:step-LoadOrder      a p-plan:Step ; p-plan:isStepOfPlan ce:SOP-CMMC-TIER1-PROVISION ;
     rdfs:comment "Verify Order signature; load required-control set + module hashes; confirm Gate 1 held." .
-ce:step-ApprovalGate   a p-plan:Step ; p-plan:isStepOfPlan ce:SOP-CMMC-TIER1-PROVISION ;
-    rdfs:comment "GitHub PR + environment reviewer; separation of duties." .
-ce:step-FetchByHash    a p-plan:Step ; p-plan:isStepOfPlan ce:SOP-CMMC-TIER1-PROVISION .
-ce:step-Plan           a p-plan:Step ; p-plan:isStepOfPlan ce:SOP-CMMC-TIER1-PROVISION .
-ce:step-PolicyCheck    a p-plan:Step ; p-plan:isStepOfPlan ce:SOP-CMMC-TIER1-PROVISION ;
-    rdfs:comment "Pre-apply OPA/Checkov/Trivy — fail here STOPS the build." .
-ce:step-Apply          a p-plan:Step ; p-plan:isStepOfPlan ce:SOP-CMMC-TIER1-PROVISION ;
-    rdfs:comment "terraform apply — builds the real environment." .
-ce:step-LiveTests      a p-plan:Step ; p-plan:isStepOfPlan ce:SOP-CMMC-TIER1-PROVISION .
-ce:step-AssembleBOM    a p-plan:Step ; p-plan:isStepOfPlan ce:SOP-CMMC-TIER1-PROVISION .
-ce:step-Attestation    a p-plan:Step ; p-plan:isStepOfPlan ce:SOP-CMMC-TIER1-PROVISION ;
-    rdfs:comment "GATE 2 — HUMAN Affirming Official. earl:manual." .
-ce:step-Audit          a p-plan:Step ; p-plan:isStepOfPlan ce:SOP-CMMC-TIER1-PROVISION ;
-    rdfs:comment "forward/backward vs. Order's required-control set; SPRS + POA&M legality." .
-ce:step-SignStore      a p-plan:Step ; p-plan:isStepOfPlan ce:SOP-CMMC-TIER1-PROVISION ;
-    rdfs:comment "Sigstore-sign the BOM; write-once to the tier registry; return BOM hash." .
 
-# ordering (isPrecededBy chain) — add per ADCS pattern.
+ce:step-FetchByHash    a p-plan:Step ; p-plan:isStepOfPlan ce:SOP-CMMC-TIER1-PROVISION ;
+    p-plan:isPrecededBy ce:step-LoadOrder ;
+    rdfs:comment "Pull the exact modules + policies from the tier registry, by hash." .
+
+ce:step-Plan           a p-plan:Step ; p-plan:isStepOfPlan ce:SOP-CMMC-TIER1-PROVISION ;
+    p-plan:isPrecededBy ce:step-FetchByHash ;
+    rdfs:comment "terraform plan → plan hash (static evidence)." .
+
+ce:step-PolicyCheck    a p-plan:Step ; p-plan:isStepOfPlan ce:SOP-CMMC-TIER1-PROVISION ;
+    p-plan:isPrecededBy ce:step-Plan ;
+    rdfs:comment "Pre-apply OPA/Checkov/Trivy — fail here STOPS the build before anything is built." .
+
+ce:step-Apply          a p-plan:Step ; p-plan:isStepOfPlan ce:SOP-CMMC-TIER1-PROVISION ;
+    p-plan:isPrecededBy ce:step-PolicyCheck ;
+    rdfs:comment "terraform apply — builds the real environment → state hash (gated)." .
+
+ce:step-CollectEvidence a p-plan:Step ; p-plan:isStepOfPlan ce:SOP-CMMC-TIER1-PROVISION ;
+    p-plan:isPrecededBy ce:step-Apply ;
+    rdfs:comment "Bind provisioning byproducts (plan/state/config hashes) as evidence." .
+
+ce:step-Oracles        a p-plan:Step ; p-plan:isStepOfPlan ce:SOP-CMMC-TIER1-PROVISION ;
+    p-plan:isPrecededBy ce:step-CollectEvidence ;
+    rdfs:comment "Run oracles/ against what was built → EARL control-check assertions." .
+
+ce:step-Attestation    a p-plan:Step ; p-plan:isStepOfPlan ce:SOP-CMMC-TIER1-PROVISION ;
+    p-plan:isPrecededBy ce:step-Oracles ;
+    rdfs:comment "GATE 2 — HUMAN Affirming Official: MET/NOT MET per control. earl:manual." .
+
+ce:step-Audit          a p-plan:Step ; p-plan:isStepOfPlan ce:SOP-CMMC-TIER1-PROVISION ;
+    p-plan:isPrecededBy ce:step-Attestation ;
+    rdfs:comment "forward/backward vs. the Order's required-control set; SPRS + POA&M legality." .
+
+ce:step-SignAndStore   a p-plan:Step ; p-plan:isStepOfPlan ce:SOP-CMMC-TIER1-PROVISION ;
+    p-plan:isPrecededBy ce:step-Audit ;
+    rdfs:comment "Sigstore-sign the BOM; write-once to the tier registry; return the BOM hash." .
