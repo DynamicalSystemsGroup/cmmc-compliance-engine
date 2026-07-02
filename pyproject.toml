@@ -24,4 +24,5 @@ addopts = "-m 'not live and not network'"
 markers = [
     "live: opt-in tests that hit live services",
     "network: opt-in tests that fetch over the network",
+    "terraform: tests that invoke the terraform binary; skip when absent",
 ]
