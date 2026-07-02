@@ -1,0 +1,8 @@
+{
+  "compacted": true,
+  "fullOutputPath": "/Users/sayertindall/.pi/agent/sessions/--Users-sayertindall-Documents-GitHub-block.science-compliance--/.pi-agent-browser-artifacts/019f23e3-2124-790b-aef1-ccb2eda48ecf/pi-agent-browser-output-14eff995de0be393.json",
+  "outputCharCount": 160366,
+  "outputLineCount": 2880,
+  "previewCharCount": 2508,
+  "previewLineCount": 34
+}

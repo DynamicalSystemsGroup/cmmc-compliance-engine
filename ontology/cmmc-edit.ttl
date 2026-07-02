@@ -1,0 +1,77 @@
+# CMMC integration ontology — SOURCE (hand-edited). Build → cmmc.ttl.
+# SCAFFOLD: skeleton only. Populate all 110 controls from
+# reference/control-catalog.md (Document 1). No novel epistemic vocabulary:
+# cmmc:Control is a SysMLv2 requirement; status reuses the EARL lattice.
+
+@prefix cmmc:  <http://dynamicalsystems.group/ontology/cmmc#> .
+@prefix rtm:   <http://example.org/ontology/rtm#> .
+@prefix sysml: <https://www.omg.org/spec/SysML/2.0/> .
+@prefix earl:  <http://www.w3.org/ns/earl#> .
+@prefix owl:   <http://www.w3.org/2002/07/owl#> .
+@prefix rdf:   <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:  <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:   <http://www.w3.org/2001/XMLSchema#> .
+
+#################################################################
+# TBox — thin integration layer over established standards
+#################################################################
+
+cmmc:Control a owl:Class ;
+    rdfs:subClassOf sysml:RequirementDefinition ;
+    rdfs:label "CMMC control (a requirement to be attested MET)" .
+
+cmmc:Family a owl:Class ;
+    rdfs:label "NIST 800-171 control family (AC, AU, IA, SC, ...)" .
+
+# --- data properties mirroring Document 1's columns ---
+cmmc:controlId        a owl:DatatypeProperty ; rdfs:range xsd:string .
+cmmc:weight           a owl:DatatypeProperty ; rdfs:range xsd:integer .  # 1 | 3 | 5
+cmmc:poamEligible     a owl:DatatypeProperty ; rdfs:range xsd:boolean .
+cmmc:nonDeferrable    a owl:DatatypeProperty ; rdfs:range xsd:boolean .
+cmmc:assessmentMethod a owl:ObjectProperty .   # cmmc:Examine|Interview|Test
+cmmc:evidenceType     a owl:ObjectProperty .
+cmmc:family           a owl:ObjectProperty ; rdfs:range cmmc:Family .
+cmmc:derivedFrom      a owl:ObjectProperty ; rdfs:subPropertyOf rtm:derivedFrom .
+cmmc:poamItem         a owl:ObjectProperty .   # link to a POA&M entry (legal only if weight = 1)
+
+cmmc:Examine a cmmc:AssessmentMethod . cmmc:Interview a cmmc:AssessmentMethod . cmmc:Test a cmmc:AssessmentMethod .
+
+# families
+cmmc:AC a cmmc:Family ; rdfs:label "Access Control" .
+cmmc:IA a cmmc:Family ; rdfs:label "Identification & Authentication" .
+cmmc:SC a cmmc:Family ; rdfs:label "System & Communications Protection" .
+# ... AT AU CM IR MA MP PS PE RA CA SI — add the remaining 11 families.
+
+#################################################################
+# ABox — controls. EXAMPLES ONLY. Author all 110 from Document 1.
+#################################################################
+
+cmmc:IA.L2-3.5.3 a cmmc:Control ;
+    cmmc:controlId        "IA.L2-3.5.3" ;
+    sysml:declaredName    "IA.L2-3.5.3" ;
+    sysml:text            "Use multifactor authentication for local and network access to privileged accounts and for network access to non-privileged accounts." ;
+    cmmc:weight           5 ;
+    cmmc:poamEligible     false ;
+    cmmc:nonDeferrable    true ;
+    cmmc:assessmentMethod cmmc:Examine, cmmc:Test ;
+    cmmc:family           cmmc:IA .
+
+cmmc:SC.L2-3.13.11 a cmmc:Control ;
+    cmmc:controlId        "SC.L2-3.13.11" ;
+    sysml:declaredName    "SC.L2-3.13.11" ;
+    sysml:text            "Employ FIPS-validated cryptography when used to protect the confidentiality of CUI." ;
+    cmmc:weight           5 ;
+    cmmc:poamEligible     false ;
+    cmmc:nonDeferrable    true ;
+    cmmc:assessmentMethod cmmc:Examine, cmmc:Test ;
+    cmmc:family           cmmc:SC .
+
+cmmc:AC.L2-3.1.1 a cmmc:Control ;
+    cmmc:controlId        "AC.L2-3.1.1" ;
+    sysml:declaredName    "AC.L2-3.1.1" ;
+    sysml:text            "Limit system access to authorized users, processes acting on behalf of authorized users, and devices." ;
+    cmmc:weight           5 ;
+    cmmc:poamEligible     false ;
+    cmmc:nonDeferrable    true ;
+    cmmc:assessmentMethod cmmc:Examine, cmmc:Test ;
+    cmmc:family           cmmc:AC .

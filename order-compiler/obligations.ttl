@@ -1,0 +1,59 @@
+# Contract Obligation Profile (COP) vocab + a worked NV012 example — SCAFFOLD.
+# Produced by the Order Compiler; AI-drafted, human-attested. Each obligation
+# derives a required control set (Gate 1 resolves controls → modules).
+
+@prefix cmmc: <http://dynamicalsystems.group/ontology/cmmc#> .
+@prefix ce:   <http://dynamicalsystems.group/compliance-engine/> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+#################################################################
+# TBox
+#################################################################
+cmmc:Obligation a rdfs:Class ;
+    rdfs:label "A contract-imposed obligation, extracted into the COP" .
+cmmc:obligationType   a rdf:Property .   # framework|hosting|data|personnel|environment|deliverable
+cmmc:sourceRef        a rdf:Property .   # hashed clause / Q&A reference
+cmmc:derivesControls  a rdf:Property .   # -> cmmc:Control(s)
+cmmc:attestedBy       a rdf:Property .   # Compliance Officer who confirmed the COP
+
+#################################################################
+# NV012 example COP (drives the Order). EXTRACTED, then ATTESTED.
+#################################################################
+ce:COP-NV012 a prov:Entity ;
+    rdfs:label "Contract Obligation Profile — DLA26BZ03-NV012" ;
+    cmmc:attestedBy ce:role-ComplianceOfficer ;
+    prov:wasDerivedFrom ce:contract-NV012-topic , ce:contract-NV012-QA .
+
+ce:OBL-CMMC-L2 a cmmc:Obligation ;
+    cmmc:obligationType "framework" ;
+    cmmc:sourceRef "NV012 Q36: CMMC Level 2 (Self-Attestation) prior to award" ;
+    cmmc:derivesControls "ALL-110-NIST-800-171" .   # expands via rule library
+
+ce:OBL-IL5 a cmmc:Obligation ;
+    cmmc:obligationType "hosting" ;
+    cmmc:sourceRef "NV012 Q36/Q53: minimum DoD Impact Level 5" ;
+    cmmc:derivesControls "IL5-OVERLAY" .
+
+ce:OBL-ITAR a cmmc:Obligation ;
+    cmmc:obligationType "personnel" ;
+    cmmc:sourceRef "NV012 topic ITAR section; 22 CFR 120-130" ;
+    cmmc:derivesControls cmmc:SC.L2-3.13.11 ;   # + US-person, residency, e2e (rule library)
+    rdfs:comment "US-person access only; US data residency; end-to-end CUI boundary across connectors (Q44)." .
+
+ce:OBL-CUI-BOUNDARY a cmmc:Obligation ;
+    cmmc:obligationType "data" ;
+    cmmc:sourceRef "NV012: vendor financial / EBS data is CUI" ;
+    cmmc:derivesControls cmmc:AC.L2-3.1.1 .   # + DLP, encryption (rule library)
+
+ce:OBL-PHASE1-ENV a cmmc:Obligation ;
+    cmmc:obligationType "environment" ;
+    cmmc:sourceRef "NV012 Q53: offeror-hosted, CUI-compliant env; Q10: no live EBS API in Phase I" ;
+    cmmc:derivesControls "TIER1-SCOPE" .
+
+# deliverable-layer obligations are TAGGED but NOT provisioned (out of Order scope)
+ce:OBL-AUDIT-EVIDENCE a cmmc:Obligation ;
+    cmmc:obligationType "deliverable" ;
+    cmmc:sourceRef "NV012 Q7/Q46: audit-ready, explainable, traceable tool output" ;
+    rdfs:comment "About the DELIVERABLE (SFFAS 47 tool), not DSG's compliance environment." .

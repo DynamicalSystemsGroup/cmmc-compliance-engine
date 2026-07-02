@@ -1,0 +1,43 @@
+# Tier 1 (IL4 / CMMC L2) cloud topology — SCAFFOLD.
+# Design elements that SATISFY controls. Populate from
+# reference/guides/tier1-buildout-plan.md and requirements §11.1.
+
+@prefix ce:    <http://dynamicalsystems.group/compliance-engine/> .
+@prefix cmmc:  <http://dynamicalsystems.group/ontology/cmmc#> .
+@prefix sysml: <https://www.omg.org/spec/SysML/2.0/> .
+@prefix rdf:   <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:  <http://www.w3.org/2000/01/rdf-schema#> .
+
+ce:Tier1Enclave a sysml:PartDefinition ;
+    rdfs:label "Tier 1 IL4 CUI enclave (Workspace Enterprise Plus + GCP Assured Workloads)" .
+
+# --- example: MFA on the CUI OU satisfies IA.L2-3.5.3 ---
+ce:Workspace2SV_CUI_OU a sysml:PartUsage ;
+    rdfs:label "Google Workspace 2-Step Verification enforced on CUI OU" ;
+    sysml:ownedRelationship [
+        a sysml:SatisfyRequirementUsage ;
+        sysml:satisfyingElement ce:Workspace2SV_CUI_OU ;
+        sysml:satisfiedRequirement cmmc:IA.L2-3.5.3
+    ] .
+
+# --- example: FIPS key management satisfies SC.L2-3.13.11 ---
+ce:CMEK_KeyRing a sysml:PartUsage ;
+    rdfs:label "Cloud KMS CMEK / CSE key management (FIPS-validated)" ;
+    sysml:ownedRelationship [
+        a sysml:SatisfyRequirementUsage ;
+        sysml:satisfyingElement ce:CMEK_KeyRing ;
+        sysml:satisfiedRequirement cmmc:SC.L2-3.13.11
+    ] .
+
+# --- example: IAM group structure satisfies AC.L2-3.1.1 ---
+ce:CUI_Users_Group a sysml:PartUsage ;
+    rdfs:label "IAM group + least-privilege roles for CUI users" ;
+    sysml:ownedRelationship [
+        a sysml:SatisfyRequirementUsage ;
+        sysml:satisfyingElement ce:CUI_Users_Group ;
+        sysml:satisfiedRequirement cmmc:AC.L2-3.1.1
+    ] .
+
+# TODO: add GCS audit-log export (AU.L2-3.3.1/2), Org Policy US-region
+# (SC.L2-3.13.x + ITAR residency), DLP (AC.L2-3.1.3), CMEK-at-rest
+# (SC.L2-3.13.16), Terraform baseline (CM.L2-3.4.1), etc.

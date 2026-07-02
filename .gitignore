@@ -1,0 +1,18 @@
+# Build + run outputs
+output/
+*.trig
+*.ttl.built
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# Secrets / env (OIDC short-lived only; no long-lived creds committed)
+.env
+
+# Never commit CUI or live evidence exports
+evidence/exports/
+*.cui

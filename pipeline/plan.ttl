@@ -1,0 +1,31 @@
+# Factory SOP / Order process model (p-plan) — SCAFFOLD.
+# Port ADCS-lifecycle-demo/pipeline/plan.ttl. Steps = the Factory stages in
+# pipeline/DESIGN.md. The Order is the input; the BOM is the output.
+
+@prefix ce:     <http://dynamicalsystems.group/compliance-engine/> .
+@prefix p-plan: <http://purl.org/net/p-plan#> .
+@prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .
+
+ce:SOP-CMMC-TIER1-PROVISION a p-plan:Plan ;
+    rdfs:label "SOP: execute an Order → build a Tier 1 IL4 CUI enclave → signed compliance BOM" .
+
+ce:step-LoadOrder      a p-plan:Step ; p-plan:isStepOfPlan ce:SOP-CMMC-TIER1-PROVISION ;
+    rdfs:comment "Verify Order signature; load required-control set + module hashes; confirm Gate 1 held." .
+ce:step-ApprovalGate   a p-plan:Step ; p-plan:isStepOfPlan ce:SOP-CMMC-TIER1-PROVISION ;
+    rdfs:comment "GitHub PR + environment reviewer; separation of duties." .
+ce:step-FetchByHash    a p-plan:Step ; p-plan:isStepOfPlan ce:SOP-CMMC-TIER1-PROVISION .
+ce:step-Plan           a p-plan:Step ; p-plan:isStepOfPlan ce:SOP-CMMC-TIER1-PROVISION .
+ce:step-PolicyCheck    a p-plan:Step ; p-plan:isStepOfPlan ce:SOP-CMMC-TIER1-PROVISION ;
+    rdfs:comment "Pre-apply OPA/Checkov/Trivy — fail here STOPS the build." .
+ce:step-Apply          a p-plan:Step ; p-plan:isStepOfPlan ce:SOP-CMMC-TIER1-PROVISION ;
+    rdfs:comment "terraform apply — builds the real environment." .
+ce:step-LiveTests      a p-plan:Step ; p-plan:isStepOfPlan ce:SOP-CMMC-TIER1-PROVISION .
+ce:step-AssembleBOM    a p-plan:Step ; p-plan:isStepOfPlan ce:SOP-CMMC-TIER1-PROVISION .
+ce:step-Attestation    a p-plan:Step ; p-plan:isStepOfPlan ce:SOP-CMMC-TIER1-PROVISION ;
+    rdfs:comment "GATE 2 — HUMAN Affirming Official. earl:manual." .
+ce:step-Audit          a p-plan:Step ; p-plan:isStepOfPlan ce:SOP-CMMC-TIER1-PROVISION ;
+    rdfs:comment "forward/backward vs. Order's required-control set; SPRS + POA&M legality." .
+ce:step-SignStore      a p-plan:Step ; p-plan:isStepOfPlan ce:SOP-CMMC-TIER1-PROVISION ;
+    rdfs:comment "Sigstore-sign the BOM; write-once to the tier registry; return BOM hash." .
+
+# ordering (isPrecededBy chain) — add per ADCS pattern.
