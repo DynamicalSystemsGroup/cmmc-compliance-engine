@@ -187,21 +187,33 @@ def _do_run_factory(ds, order_iri, evidence_set: str, backend: str, output_dir: 
 
 
 def _do_attest(ds, state) -> int:
-    """Auto-attest MET for each control the oracles evaluated, carrying the
-    oracle outcome (so R13 can flag a MET-over-failing-oracle contradiction)."""
+    """Auto-attest MET for the FULL Order-required control set (Gate 2).
+
+    A machine-checked control carries its real oracle outcome (`ce:oracleOutcome`)
+    so R13 still fires in the `contradiction` scenario (a failed oracle + a MET
+    attestation without override → contradiction). A required control with no
+    machine oracle is attested MET as human/inherited (no `ce:oracleOutcome`),
+    so `all-covered` reaches full coverage over the required set → SPRS 110/Final.
+    """
     from ontology.prefixes import EARL
     from traceability.attestation import OUTCOME_PASSED, request_attestation
 
     outcome_iri = {"passed": EARL.passed, "failed": EARL.failed, "cantTell": EARL.cantTell}
-    n = 0
+    required = state.load_order.required_controls if state.load_order else ()
     outcomes = state.oracles.outcomes if state.oracles else {}
-    for control_id, oracle_outcome in sorted(outcomes.items()):
+    n = 0
+    for control_id in sorted(required):
+        oracle_outcome = outcomes.get(control_id)
+        if oracle_outcome is not None:
+            adequacy = "Implementation reviewed against the provisioned configuration."
+            sufficiency = "Machine oracle + config evidence sufficient for the Phase-I mock run."
+        else:
+            adequacy = "Implementation reviewed; control met by human/inherited determination."
+            sufficiency = "No machine oracle for this control; attested MET on documentary/CSP basis."
         request_attestation(
             ds, control_id, "NV012 Affirming Official", auto_attest=True,
-            adequacy="Implementation reviewed against the provisioned configuration.",
-            sufficiency="Evidence sufficient for the Phase-I mock run.",
-            outcome=OUTCOME_PASSED,
-            oracle_outcome=outcome_iri.get(oracle_outcome),
+            adequacy=adequacy, sufficiency=sufficiency, outcome=OUTCOME_PASSED,
+            oracle_outcome=outcome_iri.get(oracle_outcome) if oracle_outcome else None,
         )
         n += 1
     return n

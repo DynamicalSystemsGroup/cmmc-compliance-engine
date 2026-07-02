@@ -30,8 +30,13 @@ def test_demo_all_covered_runs_full_chain(tmp_path):
     # Full chain markers present, incl. the SSP stub step.
     for marker in ("compile-order", "run-factory", "attest", "audit", "bom", "ssp"):
         assert marker in res.output
-    # SPRS line printed to stdout.
-    assert "SPRS:" in res.output and "score=" in res.output
+    # Full required set attested → SPRS 110 / Final / valid over the Order's set.
+    assert "SPRS: score=110 status=Final valid_submission=True" in res.output
+    audit = json.loads((tmp_path / "audit.json").read_text())
+    assert audit["sprs"]["score"] == 110
+    assert audit["sprs"]["status"] == "Final"
+    assert audit["sprs"]["valid_submission"] is True
+    assert not audit["contradictions"]
 
     # output/bom.json written and mock (R12).
     bom_path = tmp_path / "bom.json"
@@ -40,8 +45,8 @@ def test_demo_all_covered_runs_full_chain(tmp_path):
     assert bom["evidentiary_status"] == "mock"
     assert bom["contract_id"] == "NV012"
     assert len(bom["control_mapping"]) == 22
-    # Audit artifacts written too.
-    assert (tmp_path / "audit.json").exists()
+    # Every required control is MET in the BOM (full coverage).
+    assert all(row["status"] == "MET" for row in bom["control_mapping"])
 
 
 # ---------------------------------------------------------------------------
@@ -68,6 +73,11 @@ def test_demo_contradiction_reports_r13(tmp_path):
     # A MET attestation over a failing oracle (mfa=False) → ≥1 contradiction.
     audit = json.loads((tmp_path / "audit.json").read_text())
     assert len(audit["contradictions"]) >= 1
+    # The contradicted control (IA.L2-3.5.3) is still counted MET per the human
+    # attestation — the contradiction dimension flags it, it is not dropped.
+    contradicted = {c["control"] for c in audit["contradictions"]}
+    assert "IA.L2-3.5.3" in contradicted
+    assert "IA.L2-3.5.3" in audit["met_control_ids"]
     assert (tmp_path / "bom.json").exists()
 
 

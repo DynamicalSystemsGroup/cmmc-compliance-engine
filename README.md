@@ -118,14 +118,13 @@ uv run python cli.py demo --evidence-set contradiction --auto
 What to expect:
 
 - **`all-covered`** → compiles the Order (22 required controls), runs all six
-  stages, and prints the SPRS line, e.g.
-  `SPRS: score=41 status=Ineligible valid_submission=True`, then
-  `Proven vs attested: 5 MET-by-machine / 1 MET-by-human-only` and
-  `Contradictions (R13): 0`. Writes `output/bom.json`
-  (`evidentiary_status: "mock"`), `output/audit.{md,json}`, and the write-once
-  `output/registry/`. Exit **0**. *(The score is not 110/Final: the demo
-  auto-attests only the machine-checkable control subset, so most controls remain
-  unmet — this is a wiring/plumbing demo, not a submission.)*
+  stages, attests every required control MET, and prints
+  `SPRS: score=110 status=Final valid_submission=True`, then
+  `Proven vs attested: 4 MET-by-machine / 18 MET-by-human-only` and
+  `Contradictions (R13): 0`. SPRS is scored over the **Order's required-control
+  set** (the Tier-1 controls this environment is responsible for), all MET → full
+  score. Writes `output/bom.json` (`evidentiary_status: "mock"`),
+  `output/audit.{md,json}`, and the write-once `output/registry/`. Exit **0**.
 - **`gap`** → Gate 1 refuses and names the missing 5-point control
   (`AC.L2-3.1.12` has no claiming module): `Gate 1 REFUSED — Order NOT emitted.`
   The Factory never runs and **no artifacts are written**. Exit **2**.
