@@ -1,0 +1,426 @@
+"""Operator CLI — the one-command NV012 compliance demo (U13a).
+
+Chains the whole system end-to-end:
+
+    compile-order → run-factory → attest → audit → bom (→ ssp)
+
+`demo` runs the full chain in one process over a shared `<ce:*>` Dataset (the way
+the Factory wires its named graphs). Each stage is also exposed as its own
+subcommand that persists/reloads the dataset (`engine.trig`) + a small run-state
+(`run_state.json`) under `--output-dir`, so an operator can step through it.
+
+Times are pulled from the graph/state (the Order's `ce:generatedAtTime`, threaded
+via a fixed run seed) — no `datetime.now()` reaches the written artifacts.
+
+The `ssp` step is a STUB: `documents/ssp.py` (U12) is wired at integration; when
+absent this prints "SSP: pending U12" and continues (exit 0).
+"""
+
+from __future__ import annotations
+
+import json
+import sys
+from pathlib import Path
+
+import typer
+from typing import Annotated
+
+_ROOT = Path(__file__).resolve().parent
+sys.path.insert(0, str(_ROOT / "order-compiler"))
+
+# Deterministic run seed threaded through compile/attest/oracles so outputs are
+# reproducible. The audit timestamp is pulled back out of the Order graph.
+RUN_SEED_TS = "2026-07-02T00:00:00+00:00"
+CONTRACT_ID = "NV012"
+EVIDENCE_SETS = ("all-covered", "gap", "contradiction")
+# A required-but-unclaimed 5-point control used to force the Gate-1 gap scenario
+# (there is no tier1.ttl module for it — see Round 5 coverage surface).
+_GAP_CONTROL = "AC.L2-3.1.12"
+
+app = typer.Typer(add_completion=False, help="NV012 compliance engine — operator CLI.")
+
+
+# ---------------------------------------------------------------------------
+# Dataset / run-state persistence (for step-by-step subcommands)
+# ---------------------------------------------------------------------------
+
+def _engine_trig(out: Path) -> Path:
+    return out / "engine.trig"
+
+
+def _run_state_path(out: Path) -> Path:
+    return out / "run_state.json"
+
+
+def _save_ds(ds, out: Path) -> None:
+    from pipeline.dataset import export_trig
+    export_trig(ds, _engine_trig(out))
+
+
+def _load_ds(out: Path):
+    from pipeline.dataset import create_dataset
+    ds = create_dataset()
+    trig = _engine_trig(out)
+    if trig.exists():
+        ds.parse(str(trig), format="trig")
+    return ds
+
+
+def _dump_run_state(state, out: Path) -> None:
+    lo = state.load_order
+    plan_resources = [
+        {"resource_id": r.resource_id, "controls": list(r.controls)}
+        for r in (state.plan.plan_result.resources if state.plan else ())
+    ]
+    payload = {
+        "order_iri": state.order_iri,
+        "order_hash": lo.order_hash if lo else None,
+        "contract": lo.contract if lo else CONTRACT_ID,
+        "tier": lo.tier if lo else "Tier1",
+        "impact_level": lo.impact_level if lo else "IL4",
+        "standard": lo.standard if lo else "NIST SP 800-171 Rev 2",
+        "required_controls": list(lo.required_controls) if lo else [],
+        "included_modules": list(lo.included_modules) if lo else [],
+        "module_hashes": dict(state.fetch.module_hashes) if state.fetch else {},
+        "resource_ids": list(state.plan.resource_ids) if state.plan else [],
+        "plan_controls": list(state.plan.plan_controls) if state.plan else [],
+        "plan_resources": plan_resources,
+        "state_hash": state.apply.state_hash if state.apply else None,
+        "evidence_hashes": list(state.evidence.evidence_hashes) if state.evidence else [],
+        "evidence_controls": list(state.evidence.controls_addressed) if state.evidence else [],
+        "oracle_outcomes": dict(state.oracles.outcomes) if state.oracles else {},
+        "policy_passed": state.policy_check.passed if state.policy_check else False,
+        "policy_findings": [f.reason for f in state.policy_check.findings] if state.policy_check else [],
+        "halted": state.halted,
+        "halted_at": state.halted_at,
+    }
+    _run_state_path(out).write_text(json.dumps(payload, indent=2, sort_keys=True))
+
+
+def _load_run_state(ds, out: Path):
+    """Reconstruct a PipelineState from run_state.json (enough for bom/audit)."""
+    from pipeline.provision.base import PlanResult, PlannedResource
+    from pipeline.state import (
+        ApplyStageResult, EvidenceStageResult, FetchResult, LoadOrderResult,
+        OracleStageResult, PipelineState, PlanStageResult, PolicyCheckResult, PolicyFinding,
+    )
+    d = json.loads(_run_state_path(out).read_text())
+    state = PipelineState(ds=ds, provision_backend=None, store_backend=None,
+                          order_iri=d["order_iri"], contract=d["contract"])
+    state.load_order = LoadOrderResult(
+        order_iri=d["order_iri"], order_hash=d["order_hash"], verified=True,
+        contract=d["contract"], tier=d["tier"], impact_level=d["impact_level"],
+        standard=d["standard"], required_controls=tuple(d["required_controls"]),
+        included_modules=tuple(d["included_modules"]),
+    )
+    state.fetch = FetchResult(modules_verified=True, module_hashes=dict(d["module_hashes"]))
+    resources = tuple(
+        PlannedResource(resource_id=r["resource_id"], address="", type="",
+                        controls=tuple(r["controls"]), values={}, region=None)
+        for r in d["plan_resources"]
+    )
+    state.plan = PlanStageResult(
+        plan_result=PlanResult(plan_json={}, resources=resources),
+        resource_ids=tuple(d["resource_ids"]), plan_controls=tuple(d["plan_controls"]),
+    )
+    if d.get("state_hash"):
+        state.apply = ApplyStageResult(state_hash=d["state_hash"], applied=True,
+                                       resource_count=len(resources))
+    state.evidence = EvidenceStageResult(
+        evidence_node_count=len(d["evidence_hashes"]),
+        evidence_hashes=tuple(d["evidence_hashes"]),
+        controls_addressed=tuple(d["evidence_controls"]),
+    )
+    state.oracles = OracleStageResult(outcomes=dict(d["oracle_outcomes"]), assertion_iris=())
+    state.policy_check = PolicyCheckResult(
+        passed=d["policy_passed"],
+        findings=tuple(PolicyFinding(resource_id="", reason=r) for r in d["policy_findings"]),
+        oracle_outcomes={},
+    )
+    state.halted = d["halted"]
+    state.halted_at = d["halted_at"]
+    return state
+
+
+# ---------------------------------------------------------------------------
+# Stage helpers (used by both `demo` and the standalone subcommands)
+# ---------------------------------------------------------------------------
+
+class _GapRefused(Exception):
+    """Gate 1 refused the Order — carries the report for a clean CLI message."""
+
+    def __init__(self, report):
+        self.report = report
+        super().__init__("Gate 1 refused the Order")
+
+
+def _do_compile(ds, obligations, evidence_set: str, now: str):
+    """Compile + attest the COP → Order. For the `gap` scenario, inject a
+    required-but-unclaimed control so Gate 1 refuses (Factory never runs)."""
+    import compiler
+    import cop
+    import rule_library as rl
+
+    obligations = dict(obligations)
+    if evidence_set == "gap":
+        obligations["OBL-DEMO-GAP"] = rl.Obligation(
+            "OBL-DEMO-GAP", rl.DATA, derives=frozenset({_GAP_CONTROL})
+        )
+    att = cop.attest_cop(ds, obligations, auto=True, now=now)
+    try:
+        return compiler.compile_order(ds, obligations, att, now=now)
+    except compiler.Gate1Failed as exc:
+        raise _GapRefused(exc.report) from exc
+
+
+def _do_run_factory(ds, order_iri, evidence_set: str, backend: str, output_dir: Path):
+    from pipeline.backends.local import LocalBackend
+    from pipeline.provision import FakeProvisionBackend, TerraformBackend
+    from pipeline.runner import run_factory
+
+    provision = TerraformBackend() if backend == "terraform" else FakeProvisionBackend()
+    return run_factory(
+        ds, order_iri, provision_backend=provision, store_backend=LocalBackend(),
+        evidence_set=evidence_set, now=RUN_SEED_TS, run_preflight=True,
+        output_dir=output_dir,
+    )
+
+
+def _do_attest(ds, state) -> int:
+    """Auto-attest MET for each control the oracles evaluated, carrying the
+    oracle outcome (so R13 can flag a MET-over-failing-oracle contradiction)."""
+    from ontology.prefixes import EARL
+    from traceability.attestation import OUTCOME_PASSED, request_attestation
+
+    outcome_iri = {"passed": EARL.passed, "failed": EARL.failed, "cantTell": EARL.cantTell}
+    n = 0
+    outcomes = state.oracles.outcomes if state.oracles else {}
+    for control_id, oracle_outcome in sorted(outcomes.items()):
+        request_attestation(
+            ds, control_id, "NV012 Affirming Official", auto_attest=True,
+            adequacy="Implementation reviewed against the provisioned configuration.",
+            sufficiency="Evidence sufficient for the Phase-I mock run.",
+            outcome=OUTCOME_PASSED,
+            oracle_outcome=outcome_iri.get(oracle_outcome),
+        )
+        n += 1
+    return n
+
+
+def _run_timestamp(ds) -> str:
+    """Pull the run timestamp from the Order graph (no datetime.now)."""
+    from ontology.prefixes import CE, G_ORDER
+    from rdflib import URIRef
+    g = ds.graph(URIRef(G_ORDER))
+    for _s, _p, o in g.triples((None, CE.generatedAtTime, None)):
+        return str(o)
+    return RUN_SEED_TS
+
+
+def _do_audit(ds, output_dir: Path):
+    from traceability.audit import audit, emit_audit_graph, render_report
+
+    report = audit(ds, timestamp=_run_timestamp(ds))
+    emit_audit_graph(ds, report)
+    (output_dir / "audit.md").write_text(render_report(report, "md"))
+    (output_dir / "audit.json").write_text(render_report(report, "json"))
+    return report
+
+
+def _do_bom(state, ds, output_dir: Path):
+    from pipeline.registry import Registry
+    from traceability.bom import build_bom, store_bom
+
+    bom = build_bom(state, ds, contract_id=CONTRACT_ID)
+    registry = Registry(output_dir / "registry")
+    store_bom(bom, registry, CONTRACT_ID)
+    (output_dir / "bom.json").write_text(bom.to_canonical_json())
+    return bom
+
+
+def _ssp_hook() -> None:
+    """SSP stub — U12 wiring is finished at integration."""
+    try:
+        import documents.ssp  # noqa: F401
+    except ImportError:
+        typer.echo("SSP: pending U12 (documents/ssp.py not yet available)")
+        return
+    typer.echo("SSP: documents.ssp present — full SSP rendering wired at integration")
+
+
+# ---------------------------------------------------------------------------
+# Subcommands
+# ---------------------------------------------------------------------------
+
+_OUT = Annotated[str, typer.Option("--output-dir", help="Artifact output directory.")]
+_EVSET = Annotated[str, typer.Option("--evidence-set", help="all-covered | gap | contradiction.")]
+
+
+def _ensure_out(output_dir: str) -> Path:
+    out = Path(output_dir)
+    out.mkdir(parents=True, exist_ok=True)
+    return out
+
+
+@app.command("compile-order")
+def compile_order_cmd(
+    output_dir: _OUT = "output",
+    evidence_set: _EVSET = "all-covered",
+    auto: Annotated[bool, typer.Option("--auto", help="Auto-attest the COP.")] = True,
+) -> None:
+    """Compile + attest the NV012 COP → hash-referenced Order (Gate 1 gated)."""
+    import compiler
+    out = _ensure_out(output_dir)
+    ds, obligations = compiler.load_pipeline_dataset()
+    try:
+        order = _do_compile(ds, obligations, evidence_set, RUN_SEED_TS)
+    except _GapRefused as gap:
+        typer.echo(f"Gate 1 REFUSED — Order not emitted. Missing module for: "
+                   f"{', '.join(gap.report.gap_controls())}")
+        raise typer.Exit(2)
+    _save_ds(ds, out)
+    typer.echo(f"Order compiled: {order.order_hash} "
+               f"({len(order.required_controls)} controls, {len(order.included_modules)} modules)")
+
+
+@app.command("run-factory")
+def run_factory_cmd(
+    output_dir: _OUT = "output",
+    evidence_set: _EVSET = "all-covered",
+    backend: Annotated[str, typer.Option("--backend", help="fake | terraform.")] = "fake",
+) -> None:
+    """Run the Factory over the compiled Order."""
+    from ontology.prefixes import CE, G_ORDER
+    from rdflib import URIRef
+    out = _ensure_out(output_dir)
+    ds = _load_ds(out)
+    order_iri = next(ds.graph(URIRef(G_ORDER)).subjects(CE.orderHash), None)
+    if order_iri is None:
+        typer.echo("No Order found — run compile-order first.")
+        raise typer.Exit(2)
+    state = _do_run_factory(ds, order_iri, evidence_set, backend, out)
+    _save_ds(ds, out)
+    _dump_run_state(state, out)
+    if state.halted:
+        typer.echo(f"Factory HALTED at {state.halted_at}: {[f.reason for f in state.failures]}")
+        raise typer.Exit(1)
+    typer.echo(f"Factory complete: {len(state.oracles.outcomes)} oracle outcomes, "
+               f"{state.evidence.evidence_node_count} evidence nodes")
+
+
+@app.command("attest")
+def attest_cmd(output_dir: _OUT = "output") -> None:
+    """Auto-attest each control the Factory produced an oracle outcome for."""
+    out = _ensure_out(output_dir)
+    ds = _load_ds(out)
+    state = _load_run_state(ds, out)
+    n = _do_attest(ds, state)
+    _save_ds(ds, out)
+    typer.echo(f"Attested {n} control(s) (Gate 2).")
+
+
+@app.command("audit")
+def audit_cmd(output_dir: _OUT = "output") -> None:
+    """Run the bidirectional audit + SPRS; write audit.md/json."""
+    out = _ensure_out(output_dir)
+    ds = _load_ds(out)
+    report = _do_audit(ds, out)
+    _save_ds(ds, out)
+    _print_audit_summary(report)
+
+
+@app.command("bom")
+def bom_cmd(output_dir: _OUT = "output") -> None:
+    """Assemble + store the BOM; write bom.json."""
+    out = _ensure_out(output_dir)
+    ds = _load_ds(out)
+    state = _load_run_state(ds, out)
+    bom = _do_bom(state, ds, out)
+    typer.echo(f"BOM: {bom.bom_hash} (evidentiary_status={bom.evidentiary_status})")
+
+
+@app.command("ssp")
+def ssp_cmd(output_dir: _OUT = "output") -> None:
+    """SSP stub (pending U12)."""
+    _ensure_out(output_dir)
+    _ssp_hook()
+
+
+def _print_audit_summary(report) -> None:
+    if report.sprs is not None:
+        typer.echo(f"SPRS: score={report.sprs.score} status={report.sprs.status} "
+                   f"valid_submission={report.sprs.valid_submission}")
+    else:
+        typer.echo("SPRS: n/a (no scorable controls)")
+    typer.echo(f"Proven vs attested: {report.proven.summary()}")
+    typer.echo(f"Contradictions (R13): {len(report.contradictions)}")
+
+
+# ---------------------------------------------------------------------------
+# The one command
+# ---------------------------------------------------------------------------
+
+@app.command("demo")
+def demo(
+    output_dir: _OUT = "output",
+    evidence_set: _EVSET = "all-covered",
+    auto: Annotated[bool, typer.Option("--auto", help="Auto-attest COP + controls.")] = True,
+    backend: Annotated[str, typer.Option("--backend", help="fake | terraform.")] = "fake",
+) -> None:
+    """Run the full NV012 chain: compile-order → run-factory → attest → audit → bom → ssp."""
+    import compiler
+
+    if evidence_set not in EVIDENCE_SETS:
+        typer.echo(f"--evidence-set must be one of {EVIDENCE_SETS}")
+        raise typer.Exit(2)
+    out = _ensure_out(output_dir)
+
+    # 1. compile + attest Order (shared ds threaded through every stage).
+    ds, obligations = compiler.load_pipeline_dataset()
+    typer.echo(f"[demo] evidence-set={evidence_set}")
+    try:
+        order = _do_compile(ds, obligations, evidence_set, RUN_SEED_TS)
+    except _GapRefused as gap:
+        typer.echo(f"[1/6 compile-order] Gate 1 REFUSED — Order NOT emitted. "
+                   f"Missing module for required control(s): {', '.join(gap.report.gap_controls())}")
+        raise typer.Exit(2)
+    typer.echo(f"[1/6 compile-order] Order {order.order_hash} "
+               f"({len(order.required_controls)} controls)")
+
+    # 2. run Factory.
+    state = _do_run_factory(ds, order.iri, evidence_set, backend, out)
+    if state.halted:
+        typer.echo(f"[2/6 run-factory] HALTED at {state.halted_at} "
+                   f"(safety valve): {[f.reason for f in state.failures]}")
+        raise typer.Exit(1)
+    typer.echo(f"[2/6 run-factory] {state.evidence.evidence_node_count} evidence nodes, "
+               f"{len(state.oracles.outcomes)} oracle outcomes")
+
+    # 3. attest.
+    n = _do_attest(ds, state)
+    typer.echo(f"[3/6 attest] {n} control(s) attested (Gate 2)")
+
+    # 4. audit + SPRS.
+    report = _do_audit(ds, out)
+    typer.echo("[4/6 audit]")
+    _print_audit_summary(report)
+
+    # 5. BOM.
+    bom = _do_bom(state, ds, out)
+    typer.echo(f"[5/6 bom] {bom.bom_hash} evidentiary_status={bom.evidentiary_status} "
+               f"-> {out / 'bom.json'}")
+
+    # 6. SSP (stub until U12 wiring at integration).
+    typer.echo("[6/6 ssp]")
+    _ssp_hook()
+
+    _save_ds(ds, out)
+    _dump_run_state(state, out)
+
+
+def main() -> None:  # pragma: no cover
+    app()
+
+
+if __name__ == "__main__":  # pragma: no cover
+    main()
