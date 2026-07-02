@@ -16,6 +16,11 @@ is a HARD ERROR — the submission is invalid, not merely low.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from rdflib import Dataset, Graph
 
 FINAL = 110
 CONDITIONAL_FLOOR = 88
@@ -24,10 +29,15 @@ CONDITIONAL_FLOOR = 88
 @dataclass
 class ControlStatus:
     control_id: str
-    weight: int              # 1 | 3 | 5
+    weight: int              # 1 | 3 | 5 (variable controls resolve to their max)
     met: bool                # attested earl:passed
     on_poam: bool = False
     poam_eligible: bool = False   # cmmc:poamEligible from the catalog
+    # Additive metadata (backward-compatible; score() ignores these). The
+    # variable-weight controls (IA.L2-3.5.3, SC.L2-3.13.11) carry the partial
+    # weight for a future partial-credit hook — Phase I scores full `weight`.
+    variable_weight: bool = False
+    weight_if_partial: int | None = None
 
 
 @dataclass
@@ -68,3 +78,114 @@ def score(controls: list[ControlStatus]) -> SprsResult:
         status = "Ineligible"
 
     return SprsResult(score=s, status=status, illegal_poam=illegal, unmet=unmet)
+
+
+# --------------------------------------------------------------------------- #
+# Catalog-backed loader (dependency injection — the graph dependency stays OUT
+# of score()).
+# --------------------------------------------------------------------------- #
+
+# Namespace for the CMMC control catalog. Imported lazily so importing this
+# module for the pure scorer never requires rdflib.
+_CMMC_URI = "http://dynamicalsystems.group/ontology/cmmc#"
+
+
+def _as_bool(literal, default: bool = False) -> bool:
+    """Coerce an rdflib boolean Literal (or None) to a Python bool."""
+    if literal is None:
+        return default
+    try:
+        return bool(literal.toPython())
+    except AttributeError:
+        return bool(literal)
+
+
+def _catalog_graph(source: "str | Path | Graph | Dataset"):
+    """Return a queryable RDF graph for the catalog.
+
+    Accepts a path to a Turtle catalog, or an already-built rdflib
+    ``Graph``/``Dataset`` (a Dataset built by ``pipeline.dataset.create_dataset``
+    has ``default_union=True``, so control triples resolve across named graphs).
+    """
+    from rdflib import Graph
+
+    if isinstance(source, (str, Path)):
+        g = Graph()
+        g.parse(str(source), format="turtle")
+        return g
+    return source
+
+
+def load_control_statuses(
+    dataset_or_catalog_path: "str | Path | Graph | Dataset",
+    *,
+    met_control_ids: set[str],
+    poam_control_ids: set[str] = frozenset(),
+    required_control_ids: set[str] | None = None,
+) -> list[ControlStatus]:
+    """Build ``ControlStatus`` rows from the CMMC catalog + a caller-supplied MET set.
+
+    The graph dependency lives HERE, not in ``score()``: the MET set arrives as a
+    plain parameter, so U10's ``audit.py`` can derive ``met_control_ids`` from the
+    U9 attestation graph (every control with a ``ce:attests`` + ``earl:passed``
+    outcome — **including CSP-inherited-and-attested controls**, which the caller
+    simply includes in ``met_control_ids``) and hand them in without changing this
+    function.
+
+    Per control, reads ``cmmc:weight`` and ``cmmc:poamEligible`` from the catalog:
+      - ``met``          = ``control_id in met_control_ids``
+      - ``on_poam``      = ``control_id in poam_control_ids``
+      - ``poam_eligible``= ``cmmc:poamEligible`` (the six ``nonDeferrable``
+                            1-pointers load as ``poam_eligible=False``)
+      - variable-weight controls resolve to ``cmmc:weight`` (full/max); their
+        ``cmmc:weightIfPartial`` is captured for a future partial-credit hook.
+
+    If ``required_control_ids`` is given, only those controls are scored (the
+    Order's required set); otherwise all 110.
+    """
+    from rdflib import RDF, Namespace
+
+    cmmc = Namespace(_CMMC_URI)
+    graph = _catalog_graph(dataset_or_catalog_path)
+
+    statuses: list[ControlStatus] = []
+    for ctl in graph.subjects(RDF.type, cmmc.Control):
+        cid_lit = graph.value(ctl, cmmc.controlId)
+        if cid_lit is None:
+            continue
+        control_id = str(cid_lit)
+        if required_control_ids is not None and control_id not in required_control_ids:
+            continue
+
+        weight_lit = graph.value(ctl, cmmc.weight)
+        if weight_lit is None:
+            continue  # a control with no SPRS weight is not scorable
+        weight = int(weight_lit)
+
+        wip_lit = graph.value(ctl, cmmc.weightIfPartial)
+        statuses.append(ControlStatus(
+            control_id=control_id,
+            weight=weight,
+            met=control_id in met_control_ids,
+            on_poam=control_id in poam_control_ids,
+            poam_eligible=_as_bool(graph.value(ctl, cmmc.poamEligible)),
+            variable_weight=_as_bool(graph.value(ctl, cmmc.variableWeight)),
+            weight_if_partial=int(wip_lit) if wip_lit is not None else None,
+        ))
+    return statuses
+
+
+def sprs_from_catalog(
+    dataset_or_catalog_path: "str | Path | Graph | Dataset",
+    *,
+    met_control_ids: set[str],
+    poam_control_ids: set[str] = frozenset(),
+    required_control_ids: set[str] | None = None,
+) -> SprsResult:
+    """Convenience: load statuses from the catalog, then score them."""
+    return score(load_control_statuses(
+        dataset_or_catalog_path,
+        met_control_ids=met_control_ids,
+        poam_control_ids=poam_control_ids,
+        required_control_ids=required_control_ids,
+    ))
