@@ -1,6 +1,26 @@
-# Tier 1 (IL4 / CMMC L2) cloud topology — SCAFFOLD.
-# Design elements that SATISFY controls. Populate from
-# reference/guides/tier1-buildout-plan.md and requirements §11.1.
+# Tier 1 (IL4 / CMMC L2) cloud topology — module ↔ control allocation.
+#
+# HAND-AUTHORED AND MACHINE-UNVERIFIED. This mapping asserts which Tier 1
+# buildout resource satisfies which NIST SP 800-171 control. Its correctness
+# is NOT established by any oracle in this repo — it rests on the deferred
+# mapping-review sign-off (a human control-engineering review of this table)
+# plus the Gate 2 Affirming Official attestation. Treat every claim here as a
+# proposition to be verified, not a fact.
+#
+# Each buildout resource is a sysml:PartUsage (the same satisfy-edge pattern as
+# ADCS-lifecycle-demo/structural/satellite.ttl — not a new class) carrying:
+#   - a sysml:SatisfyRequirementUsage edge (satisfyingElement → this module,
+#     satisfiedRequirement → the cmmc:Control), and
+#   - cmmc:controlsSatisfied  (object property, module → each control it claims), and
+#   - cmmc:verificationMethod (WHICH oracle/live-test confirms the claim):
+#       * an IRI  ce:oracle-<slug>  ⇒ MACHINE-verifiable (an oracle/live-test the
+#         Factory runs). These feed the proven side of the proven-vs-attested metric.
+#       * a LITERAL "inherited:…" / "manual:…" ⇒ NOT machine-verifiable; the claim
+#         rests on CSP inheritance (Google CRM) or human attestation.
+# Gate 1's "no untestable claim" check requires every claiming module to name a
+# verificationMethod; the coverage metric counts controls with no MACHINE method.
+#
+# Prefixes match ontology/prefixes.py and ontology/cmmc-edit.ttl exactly.
 
 @prefix ce:    <http://dynamicalsystems.group/compliance-engine/> .
 @prefix cmmc:  <http://dynamicalsystems.group/ontology/cmmc#> .
@@ -9,35 +29,141 @@
 @prefix rdfs:  <http://www.w3.org/2000/01/rdf-schema#> .
 
 ce:Tier1Enclave a sysml:PartDefinition ;
-    rdfs:label "Tier 1 IL4 CUI enclave (Workspace Enterprise Plus + GCP Assured Workloads)" .
+    rdfs:label "Tier 1 IL4 CUI enclave (Workspace Enterprise Plus + GCP Assured Workloads IL4)" ;
+    sysml:ownedPart ce:Workspace2SV_CUI_OU ,
+                    ce:CMEK_KeyRing ,
+                    ce:CUI_Users_Group ,
+                    ce:Drive_DLP_Rules ,
+                    ce:OrgPolicy_USRegion ,
+                    ce:AuditLog_Export ,
+                    ce:Disable_NonFedRAMP_Services ,
+                    ce:Terraform_Baseline ,
+                    ce:Monitoring_Alerting ,
+                    ce:CSP_Physical_Inheritance .
 
-# --- example: MFA on the CUI OU satisfies IA.L2-3.5.3 ---
+#################################################################
+# Machine-verifiable modules (verificationMethod is an oracle IRI)
+#################################################################
+
+# MFA / 2-Step Verification enforced on the CUI OU.
 ce:Workspace2SV_CUI_OU a sysml:PartUsage ;
-    rdfs:label "Google Workspace 2-Step Verification enforced on CUI OU" ;
+    rdfs:label "Google Workspace 2-Step Verification (phishing-resistant) enforced on CUI OU" ;
     sysml:ownedRelationship [
         a sysml:SatisfyRequirementUsage ;
         sysml:satisfyingElement ce:Workspace2SV_CUI_OU ;
-        sysml:satisfiedRequirement cmmc:IA.L2-3.5.3
-    ] .
+        sysml:satisfiedRequirement cmmc:IA.L2-3.5.3 , cmmc:IA.L2-3.5.2 , cmmc:IA.L2-3.5.4
+    ] ;
+    cmmc:controlsSatisfied cmmc:IA.L2-3.5.3 , cmmc:IA.L2-3.5.2 , cmmc:IA.L2-3.5.4 ;
+    cmmc:verificationMethod ce:oracle-mfa-2sv-enforced .
 
-# --- example: FIPS key management satisfies SC.L2-3.13.11 ---
+# CMEK / Client-Side Encryption key management (FIPS-validated).
 ce:CMEK_KeyRing a sysml:PartUsage ;
-    rdfs:label "Cloud KMS CMEK / CSE key management (FIPS-validated)" ;
+    rdfs:label "Cloud KMS CMEK + Workspace CSE key management (FIPS-validated crypto)" ;
     sysml:ownedRelationship [
         a sysml:SatisfyRequirementUsage ;
         sysml:satisfyingElement ce:CMEK_KeyRing ;
-        sysml:satisfiedRequirement cmmc:SC.L2-3.13.11
-    ] .
+        sysml:satisfiedRequirement cmmc:SC.L2-3.13.11 , cmmc:SC.L2-3.13.10 , cmmc:SC.L2-3.13.16
+    ] ;
+    cmmc:controlsSatisfied cmmc:SC.L2-3.13.11 , cmmc:SC.L2-3.13.10 , cmmc:SC.L2-3.13.16 ;
+    cmmc:verificationMethod ce:oracle-cmek-fips-keyring .
 
-# --- example: IAM group structure satisfies AC.L2-3.1.1 ---
+# IAM groups + least-privilege role bindings for CUI users.
 ce:CUI_Users_Group a sysml:PartUsage ;
-    rdfs:label "IAM group + least-privilege roles for CUI users" ;
+    rdfs:label "IAM groups + least-privilege role bindings for CUI access" ;
     sysml:ownedRelationship [
         a sysml:SatisfyRequirementUsage ;
         sysml:satisfyingElement ce:CUI_Users_Group ;
-        sysml:satisfiedRequirement cmmc:AC.L2-3.1.1
-    ] .
+        sysml:satisfiedRequirement cmmc:AC.L2-3.1.1 , cmmc:AC.L2-3.1.2 , cmmc:AC.L2-3.1.5
+    ] ;
+    cmmc:controlsSatisfied cmmc:AC.L2-3.1.1 , cmmc:AC.L2-3.1.2 , cmmc:AC.L2-3.1.5 ;
+    cmmc:verificationMethod ce:oracle-iam-least-privilege .
 
-# TODO: add GCS audit-log export (AU.L2-3.3.1/2), Org Policy US-region
-# (SC.L2-3.13.x + ITAR residency), DLP (AC.L2-3.1.3), CMEK-at-rest
-# (SC.L2-3.13.16), Terraform baseline (CM.L2-3.4.1), etc.
+# Drive/Gmail DLP rules controlling CUI flow.
+ce:Drive_DLP_Rules a sysml:PartUsage ;
+    rdfs:label "Drive + Gmail DLP rules (control the flow of CUI)" ;
+    sysml:ownedRelationship [
+        a sysml:SatisfyRequirementUsage ;
+        sysml:satisfyingElement ce:Drive_DLP_Rules ;
+        sysml:satisfiedRequirement cmmc:AC.L2-3.1.3
+    ] ;
+    cmmc:controlsSatisfied cmmc:AC.L2-3.1.3 ;
+    cmmc:verificationMethod ce:oracle-drive-dlp-rules .
+
+# Org Policy: US-only resource locations (data residency).
+# ALSO enforces ITAR §120.54 U.S.-person data residency — carried as a
+# residency basis, NOT as a cmmc:controlsSatisfied (ITAR-120.54 is not a
+# NIST 800-171 control in the catalog).
+ce:OrgPolicy_USRegion a sysml:PartUsage ;
+    rdfs:label "GCP Org Policy: US-only resource locations + restricted service usage" ;
+    sysml:ownedRelationship [
+        a sysml:SatisfyRequirementUsage ;
+        sysml:satisfyingElement ce:OrgPolicy_USRegion ;
+        sysml:satisfiedRequirement cmmc:SC.L2-3.13.1
+    ] ;
+    cmmc:controlsSatisfied cmmc:SC.L2-3.13.1 ;
+    cmmc:verificationMethod ce:oracle-orgpolicy-us-residency ;
+    ce:residencyBasis "ITAR-120.54" .
+
+# Workspace + GCP audit log export to retained storage.
+ce:AuditLog_Export a sysml:PartUsage ;
+    rdfs:label "Workspace + GCP audit log export to retained Cloud Storage bucket" ;
+    sysml:ownedRelationship [
+        a sysml:SatisfyRequirementUsage ;
+        sysml:satisfyingElement ce:AuditLog_Export ;
+        sysml:satisfiedRequirement cmmc:AU.L2-3.3.1 , cmmc:AU.L2-3.3.2 , cmmc:AU.L2-3.3.5
+    ] ;
+    cmmc:controlsSatisfied cmmc:AU.L2-3.3.1 , cmmc:AU.L2-3.3.2 , cmmc:AU.L2-3.3.5 ;
+    cmmc:verificationMethod ce:oracle-auditlog-export .
+
+# Disable non-FedRAMP services for the CUI OU (least functionality).
+ce:Disable_NonFedRAMP_Services a sysml:PartUsage ;
+    rdfs:label "Disable non-FedRAMP-authorized services for the CUI OU (least functionality)" ;
+    sysml:ownedRelationship [
+        a sysml:SatisfyRequirementUsage ;
+        sysml:satisfyingElement ce:Disable_NonFedRAMP_Services ;
+        sysml:satisfiedRequirement cmmc:CM.L2-3.4.6 , cmmc:CM.L2-3.4.7
+    ] ;
+    cmmc:controlsSatisfied cmmc:CM.L2-3.4.6 , cmmc:CM.L2-3.4.7 ;
+    cmmc:verificationMethod ce:oracle-restrict-service-usage .
+
+# Terraform baseline configuration + inventory.
+ce:Terraform_Baseline a sysml:PartUsage ;
+    rdfs:label "Terraform baseline configuration + resource inventory (IaC)" ;
+    sysml:ownedRelationship [
+        a sysml:SatisfyRequirementUsage ;
+        sysml:satisfyingElement ce:Terraform_Baseline ;
+        sysml:satisfiedRequirement cmmc:CM.L2-3.4.1 , cmmc:CM.L2-3.4.2
+    ] ;
+    cmmc:controlsSatisfied cmmc:CM.L2-3.4.1 , cmmc:CM.L2-3.4.2 ;
+    cmmc:verificationMethod ce:oracle-terraform-baseline .
+
+# Cloud Monitoring alerting on security-relevant events.
+ce:Monitoring_Alerting a sysml:PartUsage ;
+    rdfs:label "Cloud Monitoring + Workspace Alert Center (security alert monitoring/response)" ;
+    sysml:ownedRelationship [
+        a sysml:SatisfyRequirementUsage ;
+        sysml:satisfyingElement ce:Monitoring_Alerting ;
+        sysml:satisfiedRequirement cmmc:SI.L2-3.14.3 , cmmc:SI.L2-3.14.6
+    ] ;
+    cmmc:controlsSatisfied cmmc:SI.L2-3.14.3 , cmmc:SI.L2-3.14.6 ;
+    cmmc:verificationMethod ce:oracle-monitoring-alerts .
+
+#################################################################
+# Inherited module (verificationMethod is a LITERAL — NOT machine-provable)
+#################################################################
+
+# CSP-inherited physical protection. PE.L2-3.10.1/2 are marked cmmc:inherited
+# in the catalog: satisfied-by-inheritance from Google's IL4 data-center
+# controls (per the Google CMMC Customer Responsibility Matrix). There is no
+# Factory oracle for a datacenter's physical security — it is MET-when-attested,
+# so the verificationMethod is a manual/inherited literal, not an oracle IRI.
+ce:CSP_Physical_Inheritance a sysml:PartUsage ;
+    rdfs:label "CSP-inherited physical protection (Google IL4 data-center controls)" ;
+    sysml:ownedRelationship [
+        a sysml:SatisfyRequirementUsage ;
+        sysml:satisfyingElement ce:CSP_Physical_Inheritance ;
+        sysml:satisfiedRequirement cmmc:PE.L2-3.10.1 , cmmc:PE.L2-3.10.2
+    ] ;
+    cmmc:controlsSatisfied cmmc:PE.L2-3.10.1 , cmmc:PE.L2-3.10.2 ;
+    cmmc:satisfiedByInheritance true ;
+    cmmc:verificationMethod "inherited:google-workspace-crm" .
