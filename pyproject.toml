@@ -26,3 +26,11 @@ markers = [
     "network: opt-in tests that fetch over the network",
     "terraform: tests that invoke the terraform binary; skip when absent",
 ]
+filterwarnings = [
+    # rdflib's own TriG serializer + query path still call the deprecated
+    # Dataset.default_context/.contexts internally (rdflib graph.py/trig.py) —
+    # not actionable in our code; silence the third-party noise so the suite
+    # output stays readable. Re-check on rdflib upgrades.
+    "ignore:Dataset.default_context is deprecated:DeprecationWarning",
+    "ignore:Dataset.contexts is deprecated:DeprecationWarning",
+]
