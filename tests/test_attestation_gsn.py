@@ -9,8 +9,9 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
-from rdflib import Dataset, URIRef
-from rdflib.namespace import RDF
+from rdflib import Dataset, Literal, URIRef
+from rdflib.namespace import RDF, XSD
+from rdflib.compare import isomorphic, to_canonical_graph
 
 from ontology.prefixes import CE, CMMC, EARL, GSN, PROV, G_ATTESTATIONS, G_AUDIT
 from oracles.criteria import evaluate
@@ -160,3 +161,57 @@ def test_auto_attest_requires_judgement_text():
     import pytest
     with pytest.raises(ValueError):
         request_attestation(ds, _CONTROL, "Jane Official", auto_attest=True)
+
+
+# ---------------------------------------------------------------------------
+# Injectable timestamp — byte-stable SSP (Round-10 fix)
+# ---------------------------------------------------------------------------
+
+_NOW = "2026-07-02T00:00:00+00:00"
+
+
+def _attestations_graph(now):
+    """Return the <ce:attestations> graph for one MET attestation stamped `now`."""
+    ds, assertion = _fixture_with_oracle({"mfa_enforced_privileged": True})
+    request_attestation(
+        ds, _CONTROL, "Jane Official", auto_attest=True,
+        adequacy="MFA is enforced on all privileged accounts via 2SV.",
+        sufficiency="Config export + oracle PASS are sufficient to mark MET.",
+        outcome=OUTCOME_PASSED, backing_oracle=assertion, now=now,
+    )
+    return _att_graph(ds)
+
+
+def test_now_sets_generated_at_time_verbatim():
+    g = _attestations_graph(_NOW)
+    att = next(g.subjects(RDF.type, CE.Attestation))
+    assert list(g.objects(att, PROV.generatedAtTime)) == [
+        Literal(_NOW, datatype=XSD.dateTime)
+    ]
+
+
+def test_same_now_yields_byte_identical_attestation_triples():
+    # Two independent runs with the same `now` → byte-identical serialization
+    # (blank nodes canonicalised so the qualifiedAssociation node can't drift).
+    g1 = _attestations_graph(_NOW)
+    g2 = _attestations_graph(_NOW)
+    bytes1 = to_canonical_graph(g1).serialize(format="nt", encoding="utf-8")
+    bytes2 = to_canonical_graph(g2).serialize(format="nt", encoding="utf-8")
+    assert bytes1 == bytes2
+
+
+def test_different_now_changes_the_subgraph():
+    # Proves the timestamp is actually captured (not ignored).
+    g1 = _attestations_graph(_NOW)
+    g2 = _attestations_graph("2026-09-09T09:09:09+00:00")
+    assert not isomorphic(g1, g2)
+
+
+def test_omitting_now_is_backward_compatible():
+    # No `now` → still emits a valid xsd:dateTime generatedAtTime (wall clock).
+    g = _attestations_graph(None)
+    att = next(g.subjects(RDF.type, CE.Attestation))
+    stamps = list(g.objects(att, PROV.generatedAtTime))
+    assert len(stamps) == 1
+    assert stamps[0].datatype == XSD.dateTime
+    assert str(stamps[0])  # non-empty timestamp present

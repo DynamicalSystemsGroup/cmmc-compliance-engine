@@ -98,6 +98,7 @@ def request_attestation(
     backing_oracle: URIRef | None = None,
     oracle_outcome: URIRef | None = None,
     override_justification: str | None = None,
+    now: str | None = None,
 ) -> URIRef:
     """Record a Gate-2 attestation for one control. Returns the attestation IRI.
 
@@ -118,6 +119,11 @@ def request_attestation(
     Declined attestations (earl:failed / earl:cantTell) are well-formed too. The
     interactive path prompts the official; `auto_attest=True` requires the two
     judgement texts up front and records earl:semiAuto.
+
+    `now` (ISO-8601, e.g. "2026-07-02T00:00:00+00:00") is used verbatim as the
+    `prov:generatedAtTime` literal so a fully-specified run is byte-reproducible
+    (the SSP's `document_date = MAX(prov:generatedAtTime)` no longer drifts). When
+    `None`, the wall clock is used exactly as before (backward-compatible).
     """
     mode = MODE_SEMI_AUTO if auto_attest else MODE_MANUAL
 
@@ -166,9 +172,8 @@ def request_attestation(
     write.add((att_uri, CE.attestationMode, mode))
     write.add((att_uri, PROV.wasAssociatedWith, official_uri))
     write.add((att_uri, EARL.assertedBy, official_uri))
-    write.add((att_uri, PROV.generatedAtTime, Literal(
-        datetime.now(timezone.utc).isoformat(), datatype=XSD.dateTime,
-    )))
+    stamp = now if now is not None else datetime.now(timezone.utc).isoformat()
+    write.add((att_uri, PROV.generatedAtTime, Literal(stamp, datatype=XSD.dateTime)))
 
     # Adequacy → gsn:Assumption; Sufficiency → gsn:Justification.
     write.add((adequacy_uri, RDF.type, GSN.Assumption))
