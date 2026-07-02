@@ -1,14 +1,27 @@
-# SCAFFOLD. The engine is built by porting from ../ADCS-lifecycle-demo (uv +
-# Python 3.12). Mirror its pyproject.toml dependency set when code lands:
-#   rdflib, pyshacl, typer, httpx  (+ google-cloud-storage, azure-storage-blob
-#   for the tier backends; opa/checkov/trivy invoked as subprocesses).
 [project]
 name = "compliance-engine"
 version = "0.0.0"
 description = "CMMC L2 / IL5 / ITAR compliance engine on a requirements-traceability substrate"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "rdflib>=7.0",
+    "pyshacl>=0.31.0",
+    "pydantic>=2.0",
+    "typer>=0.12,<1.0",
+    "httpx>=0.28.1",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+]
 
 [tool.pytest.ini_options]
-# Inherit the ADCS discipline: skip live/network by default.
+# Inherit the ADCS discipline: package importable from repo root; skip live/network by default.
+pythonpath = ["."]
 addopts = "-m 'not live and not network'"
+markers = [
+    "live: opt-in tests that hit live services",
+    "network: opt-in tests that fetch over the network",
+]

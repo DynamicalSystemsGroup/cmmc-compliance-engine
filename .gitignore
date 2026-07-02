@@ -16,3 +16,7 @@ __pycache__/
 # Never commit CUI or live evidence exports
 evidence/exports/
 *.cui
+
+# multi-agent orchestration scratch
+tasks/
+results/
