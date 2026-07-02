@@ -92,4 +92,68 @@ The [`ADCS-lifecycle-demo`](../ADCS-lifecycle-demo) engine is the proven **back 
 
 **As-built:** [`docs/AS-BUILT.md`](docs/AS-BUILT.md) maps the shipped code to the architecture, the two gates, the named-graph/predicate component map, and R1–R13 requirements traceability.
 
+## Run the NV012 demo
+
+One command drives the whole chain — compile the Order → run the Factory (real
+`terraform plan`, mock providers) → attest → audit + SPRS → BOM — over the NV012
+example contract. `cli.py` (repo root) is the operator entrypoint.
+
+**Prereqs.** `uv sync`. No cloud account or credentials are needed: the demo
+defaults to a mock provisioner (`--backend fake`) and fixture-backed evidence.
+`terraform` (≥ 1.4) is optional and only used with `--backend terraform`.
+
+**The three scenarios** (each is one copy-pasteable command):
+
+```bash
+# 1. Happy path — full chain, writes the BOM + audit + registry, exit 0
+uv run python cli.py demo --evidence-set all-covered --auto
+
+# 2. Coverage gap — Gate 1 REFUSES before anything is built, exit 2
+uv run python cli.py demo --evidence-set gap --auto
+
+# 3. Contradiction — completes, but the audit flags an R13 contradiction, exit 0
+uv run python cli.py demo --evidence-set contradiction --auto
+```
+
+What to expect:
+
+- **`all-covered`** → compiles the Order (22 required controls), runs all six
+  stages, and prints the SPRS line, e.g.
+  `SPRS: score=41 status=Ineligible valid_submission=True`, then
+  `Proven vs attested: 5 MET-by-machine / 1 MET-by-human-only` and
+  `Contradictions (R13): 0`. Writes `output/bom.json`
+  (`evidentiary_status: "mock"`), `output/audit.{md,json}`, and the write-once
+  `output/registry/`. Exit **0**. *(The score is not 110/Final: the demo
+  auto-attests only the machine-checkable control subset, so most controls remain
+  unmet — this is a wiring/plumbing demo, not a submission.)*
+- **`gap`** → Gate 1 refuses and names the missing 5-point control
+  (`AC.L2-3.1.12` has no claiming module): `Gate 1 REFUSED — Order NOT emitted.`
+  The Factory never runs and **no artifacts are written**. Exit **2**.
+- **`contradiction`** → the same happy chain, but a human attests MET over a
+  failing machine oracle (MFA off), so the audit reports
+  `Contradictions (R13): 1`. `output/bom.json` is still written. Exit **0**.
+
+Artifacts written under `--output-dir` (default `output/`):
+
+| Artifact | What it is |
+| --- | --- |
+| `bom.json` | the BOM — control-mapping + attestations + artifact hashes (canonical JSON) |
+| `audit.md` / `audit.json` | bidirectional audit + SPRS score / POA&M-legality + R13 contradictions |
+| `registry/` | write-once, content-addressed object store + two-level index (`contract → BOM → artifacts`) |
+| `engine.trig` | the full `<ce:*>` named-graph dataset for the run |
+| `run_state.json` | the finalized `PipelineState` summary (per-stage results) |
+
+Exit codes: **0** success · **1** Factory safety-valve halt (a pre-apply policy
+check failed, e.g. a non-US region — nothing was applied) · **2** Gate-1 refusal
+or bad arguments.
+
+> **This run is NON-EVIDENTIARY.** Evidence is fixture-backed and the environment
+> is provisioned by a mock provider, so every artifact carries
+> `evidentiary_status: "mock"` (R12) and the emitted BOM is **not a submittable
+> SSP** — it demonstrates the mechanism, not a real assessment.
+
+Other subcommands run the stages individually against `--output-dir`:
+`compile-order`, `run-factory`, `attest`, `audit`, `bom`, `ssp` (SSP rendering is
+wired at integration — U12). Run `uv run python cli.py --help` for the full list.
+
 *Design material, not legal advice. Verify all CMMC/ITAR interpretations with the contracting officer, C3PAO, and counsel.*
