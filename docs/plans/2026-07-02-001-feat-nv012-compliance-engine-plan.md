@@ -17,7 +17,7 @@ Build the **software system** that takes NV012 from 0→100 the way we designed 
 
 Honest framing (sharpened during deepening): the engine makes the **machine-checkable subset** of controls a provisioning artifact, and makes the **human-attested remainder** (policy/training/process controls — a large tail of the 110) auditable and drift-checked. It is not "compliance = a provisioning artifact" unqualified.
 
-Per the agreed scope, provisioning is **mocked-then-real-ready**: the Factory is real, the Terraform/cloud calls sit behind a frozen `ProvisionBackend` interface so the loop runs end-to-end and emits a BOM + SSP from fixture evidence. Live `terraform apply` and the actual SPRS/PIEE submission are **explicit follow-up work**.
+Per the agreed scope, provisioning runs **real Terraform at plan level, no live cloud**: the Factory runs the actual `terraform` binary — `validate` + `plan` + `show -json` on real HCL Tier 1 modules with **mock providers** (Terraform's `mock_provider` / `terraform test`, or null/local providers) — so OPA/Checkov/Trivy run on **real plan JSON** and the infra evidence is genuinely Terraform-derived, with **zero cloud footprint and no credentials**. Only `terraform apply` against a live GCP/Workspace tenant and the actual SPRS/PIEE submission are **explicit follow-up work**; the live-tenant config checks (is MFA *actually* on?) stay fixture-backed until a real tenant exists. (Terraform docs confirm `plan`/`validate` deploy nothing; `mock_provider` runs real HCL with no real API calls.)
 
 > **Deepening (2026-07-02):** integrated four review bundles — correctness/sequencing fixes (keep SysML; Gate 1 gets its own queries; dependency reorder), FCA safety guardrails (contradiction detector R13; non-evidentiary mock marker R12), honesty/framing (thesis scoped to the machine-checkable subset; "signed"→"hash-referenced"), and scope trims (OBL-IL5 handler, two-level registry, deferred capabilities renamed). U-IDs are unchanged.
 
@@ -51,7 +51,7 @@ The system we designed makes the machine-checkable subset a *provisioning artifa
 
 ## Scope Boundaries
 
-- **Not** running live `terraform apply` against GCP/Workspace — provisioning is mocked behind a frozen interface.
+- **Not** running live `terraform apply` against a real GCP/Workspace tenant — but real `terraform validate`/`plan`/`show -json` with mock providers **is in scope** (real HCL, real plan JSON, no cloud, no creds).
 - **Not** submitting to SPRS/PIEE or performing affirmation — the system computes the score; a human submits it separately.
 - **Not** Tier 2 (IL5 / ITAR / Azure Gov / GCC High) — NV012 Phase I is offeror-hosted IL4/Tier 1 (Q53). Tier 2 is designed-for, not built.
 - **Not** building the NV012 *deliverable* (the SFFAS 47 tool) — a separate product.
@@ -114,7 +114,7 @@ Test templates to port: `tests/test_audit.py` (18), `tests/test_backends.py` (27
 
 - **Port, don't import.** New package mirroring ADCS; copy + adapt rather than depend, so we drop the satellite/SymPy/SciPy deps and stay self-contained. (origin §5.2)
 - **Keep SysML as the structural/requirement vocab.** `cmmc:Control ⊑ sysml:RequirementDefinition`; modules are `sysml:PartUsage` with satisfy edges (matches the existing scaffold + ADCS audit queries). Retarget only the **instance** namespaces `rtm:`/`adcs:`/`sat:` → `cmmc:`/`ce:`, and keep `prov:`/`earl:`/`gsn:`/`p-plan:`/`sh:`. (Reverses the earlier "drop SysML" note, which contradicted the scaffold.)
-- **Real Factory, mocked infra — with a frozen seam.** U8 defines the `ProvisionBackend` data contract: the `plan()`/`apply()` return schema and a stable `resource_id` that (a) matches a `tier1.ttl` module, (b) is what evidence references, (c) appears in the BOM control-mapping. A conformance test pins the mock output to that schema so the real backend is a genuine drop-in. This is what keeps "mocked→real" a one-file swap.
+- **Real Factory, real Terraform (plan-level), behind a frozen seam.** The `ProvisionBackend` runs the real `terraform` binary — `validate`/`plan`/`show -json` on real HCL (U14) with mock providers — returning real plan JSON + a stable `resource_id` that (a) matches a `tier1.ttl` module, (b) is what evidence references, (c) appears in the BOM control-mapping. Only the *live-apply* variant (real cloud) is deferred behind the same interface, so going to production is a backend swap, not a Factory rewrite. Terraform is genuinely in the loop now — not canned JSON.
 - **Two gates, shared report structure, gate-specific queries.** Gate 1 (Compiler, control↔module) and Gate 2 (Factory, control↔evidence↔attestation) reuse the audit *dataclasses/render*, but each writes its own forward/backward SPARQL — they are different graph shapes.
 - **Bare SHA-256 = content-addressing, not signing.** Artifacts are hash-referenced and tamper-evident only within the write-once registry's trust boundary. Cryptographic non-repudiation (Sigstore/Rekor) is deferred; the plan avoids the word "signed."
 - **Mock provenance is indelible.** `ce:evidentiaryStatus "mock"` propagates mock-provision → mock-evidence → BOM → SSP; the SSP compiler cannot omit the banner. (R12)
@@ -228,9 +228,12 @@ graph TD
   U3 --> U5[U5 Order compile + Gate 1]
   U4 --> U5
   U2 --> U7[U7 oracles]
+  U3 --> U14[U14 terraform tier1 HCL + plan evidence]
+  U6 --> U14
   U6 --> U8[U8 Factory orchestrator]
   U7 --> U8
   U5 --> U8
+  U14 --> U8
   U8 --> U9[U9 attestation + queries + SHACL verify]
   U9 --> U10[U10 audit + contradiction + SPRS]
   U8 --> U11[U11 BOM + registry]
@@ -464,24 +467,25 @@ graph TD
 
 ---
 
-- [ ] U8. **Factory orchestrator + frozen ProvisionBackend seam**
+- [ ] U8. **Factory orchestrator + real Terraform ProvisionBackend seam**
 
-**Goal:** The runnable Factory: load+verify the Order, mock-provision (plan → policy-gate → apply) behind a **frozen `ProvisionBackend` schema**, run generators + oracles, and collect raw results into `PipelineState` — every stage emitting a `p-plan:Activity`.
+**Goal:** The runnable Factory: load+verify the Order, run **real Terraform at plan level** (`validate` → `plan` → `show -json`, mock providers) behind a **frozen `ProvisionBackend`**, policy-gate the real plan JSON, run generators + oracles, and collect raw results into `PipelineState` — every stage emitting a `p-plan:Activity`.
 
 **Requirements:** R3, R5, R8
 
-**Dependencies:** U5, U6, U7
+**Dependencies:** U5, U6, U7, U14
 
 **Files:**
-- Create: `pipeline/state.py`, `pipeline/runner.py`, `pipeline/provision/__init__.py`, `pipeline/provision/mock_terraform.py`
+- Create: `pipeline/state.py`, `pipeline/runner.py`, `pipeline/provision/__init__.py`, `pipeline/provision/terraform.py` (real `terraform` runner behind `ProvisionBackend`), `pipeline/provision/base.py` (the `ProvisionBackend` protocol)
 - Modify: `pipeline/plan.ttl`
-- Test: `tests/test_pipeline.py`, `tests/test_mock_terraform.py`
+- Test: `tests/test_pipeline.py`, `tests/test_terraform_backend.py`
 
 **Approach:**
-- **Define the `ProvisionBackend` data contract** first: the `plan()`/`apply()` return schema and a stable `resource_id` that (a) matches a `tier1.ttl` module, (b) is referenced by evidence, (c) appears in the BOM control-mapping. `mock_terraform.py` implements it; a conformance test pins mock output to the schema (the real backend's target).
+- **Define the `ProvisionBackend` protocol** first: `validate()`, `plan() -> PlanResult` (carrying the real plan JSON + a stable `resource_id` per planned resource that (a) matches a `tier1.ttl` module, (b) is referenced by evidence, (c) appears in the BOM control-mapping), and a deferred `apply()`. `TerraformBackend` implements it by shelling out to the real `terraform` binary against the U14 HCL with mock providers (no cloud, no creds). A `LiveTerraformBackend` (real `apply`) is the deferred drop-in. A conformance test pins the `PlanResult` schema so the live backend is a genuine swap.
 - Adapt `state.py`: keep `PipelineState` threading + frozen result records; replace stage result types; `activity_to_stage` must match `plan_execution.STEP_NAMES` (U1) and `plan.ttl` steps.
-- `runner.py` — **structural pattern only**: reuse orchestration + Typer shell + fail-fast preflight (probing **`ProvisionBackend.probe()` + `LocalBackend.probe()`**, not compute). Stage bodies: LoadOrder → FetchByHash → Plan(mock) → **PolicyCheck (oracles on the plan) — fail here stops before Apply** → Apply(mock) → CollectEvidence(generators) → Oracles(live tests). **Collect raw results into `PipelineState`; do not build the BOM here** (U11 owns `bom.py`).
-- `plan.ttl`: rename `ce:step-SignStore` → `ce:step-SignAndStore` (bare SHA-256; Sigstore deferred); steps enumerate the identical Factory stage set.
+- `runner.py` — **structural pattern only**: reuse orchestration + Typer shell + fail-fast preflight (probing **`ProvisionBackend.probe()`** — which checks the `terraform` binary is present + `terraform init -backend=false` succeeds — **+ `LocalBackend.probe()`**). Stage bodies: LoadOrder → FetchByHash → Plan (real `terraform plan` → `show -json`) → **PolicyCheck (OPA/Checkov/Trivy + oracles on the REAL plan JSON) — fail here stops before Apply** → Apply (mock-provider apply now; live apply deferred) → CollectEvidence (generators — live-tenant config exports, fixture-backed) → Oracles. **Collect raw results into `PipelineState`; do not build the BOM here** (U11 owns `bom.py`).
+- `plan.ttl`: rename `ce:step-SignStore` → `ce:step-SignAndStore` (bare SHA-256; Sigstore deferred); steps enumerate the identical Factory stage set. (agent-1 already aligned this in U1.)
+- **Skip gracefully** when the `terraform` binary is absent (mark the pytest `terraform` marker / skip), so the suite stays green on machines without it — the ADCS opt-in-marker discipline.
 
 **Execution note:** Start with a failing integration test asserting "a non-compliant plan (policy oracle fails) halts before Apply and produces a failure record."
 
@@ -641,6 +645,38 @@ graph TD
 - Integration: the SSP's VCRM status column equals the attestation outcomes in the graph (no drift).
 
 **Verification:** `uv run pytest tests/test_nv012_e2e.py` green; the demo command writes `output/bom.json`, `output/ssp.md` (banner present), and an SPRS score to stdout.
+
+---
+
+- [ ] U14. **Real Terraform Tier 1 HCL modules + plan-evidence generator**
+
+**Goal:** Real HCL for the Tier 1 IL4 enclave, tagged to the controls each resource satisfies, plus a generator that runs real `terraform` at plan level (mock providers) and binds the **real plan JSON** as static/plan-time evidence. This is the unit that makes the "provision = prove" loop genuinely Terraform-backed without a cloud. (Sequences U3 → U14 → U8.)
+
+**Requirements:** R2, R3, R8
+
+**Dependencies:** U3 (module↔control mapping), U6 (evidence binding)
+
+**Files:**
+- Create: `terraform/tier1/main.tf`, `terraform/tier1/variables.tf`, `terraform/tier1/providers.tf`, per-group `*.tf` (iam, kms, logging, org_policy, workspace), `terraform/tier1/tests/tier1.tftest.hcl`
+- Create: `evidence/generators/terraform_plan.py`
+- Test: `tests/test_terraform_plan_generator.py`
+
+**Approach:**
+- Author real HCL modeling the Tier 1 resources from `structural/tier1.ttl`: GCP Assured Workloads folder/project, IAM groups + least-privilege bindings, Cloud KMS CMEK keyring, log sink → GCS, Org Policy (US `resourceLocations`, restrict services, disable SA key creation); Workspace pieces via the `googleworkspace` provider where TF-manageable, else a `null_resource` placeholder. Each resource carries a `labels`/`tags` entry naming the `cmmc:` control(s) it satisfies — mirrors `tier1.ttl` so the plan-JSON→control mapping is mechanical.
+- `providers.tf` + `tier1.tftest.hcl` use Terraform `mock_provider` so `terraform test` runs `plan` (and mock `apply`) with **no credentials and no cloud**.
+- `terraform_plan.py` generator: run `terraform -chdir=terraform/tier1 validate` + `plan -out` + `show -json`; run OPA/Checkov/Trivy on the plan JSON; bind results via U6 as `ce:PolicyCheck`/`ce:Evidence` **addressing** the controls (`CM.L2-3.4.1/2` baseline, `SC.L2-3.13.1` region, `SC.L2-3.13.11/16` KMS, `AU.L2-3.3.1` logging, `AC.L2-3.1.1/2` IAM), with `ce:evidentiaryStatus` reflecting the mock-provider run.
+
+**Execution note:** Gate every terraform-invoking test behind a pytest `terraform` marker that skips when the binary is absent — the suite must stay green on machines without terraform.
+
+**Patterns to follow:** the U6 binding contract; Terraform `mock_provider`/`terraform test` docs; the ADCS opt-in-marker discipline (`pyproject` markers).
+
+**Test scenarios:**
+- Happy path: `terraform validate` passes on the HCL; `terraform test` with `mock_provider` runs plan (+mock apply) with no creds.
+- Happy path: the generator produces plan JSON and binds `ce:Evidence` addressing the expected controls, with `resource_id`s that resolve to `tier1.ttl` modules.
+- Error path (policy): an HCL variant with a non-US region is caught by the OPA/Checkov check → a FAIL policy-check evidence node (proves the safety valve runs on real plan output).
+- Edge case: `terraform` binary absent → the marked tests skip cleanly (suite stays green).
+
+**Verification:** `terraform -chdir=terraform/tier1 validate` succeeds; the generator emits plan-derived evidence bound to controls; `uv run pytest -m terraform tests/test_terraform_plan_generator.py` passes where terraform is installed.
 
 ---
 
