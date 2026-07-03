@@ -1,32 +1,32 @@
 name: Build and Publish Walkthrough
 on:
-  push:
-    branches: [ main ]
+    push:
+        branches: [main]
 
 jobs:
-  build-and-publish:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+    build-and-publish:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v4
-        with:
-          enable-cache: true
+            - name: Install uv
+              uses: astral-sh/setup-uv@v4
+              with:
+                  enable-cache: true
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
+            - name: Set up Python
+              uses: actions/setup-python@v5
+              with:
+                  python-version: "3.12"
 
-      - name: Install dependencies
-        run: uv sync --group notebook
+            - name: Install dependencies
+              run: uv sync --group notebook
 
-      - name: Build walkthrough (marimo export)
-        run: uv run --group notebook marimo export html-wasm notebook/compliance_walkthrough.py -o walkthrough/
+            - name: Build walkthrough (marimo export)
+              run: uv run --group notebook marimo export html-wasm notebooks/compliance_walkthrough.py -o walkthrough/
 
-      - name: Deploy to gh-pages
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          publish_dir: ./walkthrough
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+            - name: Deploy to gh-pages
+              uses: peaceiris/actions-gh-pages@v3
+              with:
+                  publish_dir: ./walkthrough
+                  github_token: ${{ secrets.GITHUB_TOKEN }}
