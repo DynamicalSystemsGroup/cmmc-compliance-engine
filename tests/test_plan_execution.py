@@ -22,9 +22,9 @@ import pytest
 from rdflib import Graph, URIRef
 from rdflib.namespace import RDF
 
-from ontology.prefixes import CE, G_PLAN_EXECUTION, P_PLAN, PROV
-from pipeline.dataset import create_dataset
-from pipeline.plan_execution import (
+from compliance_engine.ontology.prefixes import CE, G_PLAN_EXECUTION, P_PLAN, PROV
+from compliance_engine.pipeline.dataset import create_dataset
+from compliance_engine.pipeline.plan_execution import (
     STEP_NAMES,
     emit_stage_activity,
     end_step,
@@ -34,7 +34,7 @@ from pipeline.plan_execution import (
 )
 
 ROOT = Path(__file__).resolve().parent.parent
-PLAN_TTL = ROOT / "pipeline" / "plan.ttl"
+PLAN_TTL = ROOT / "src" / "compliance_engine" / "pipeline" / "plan.ttl"
 PLAN_IRI = URIRef(f"{CE}SOP-CMMC-TIER1-PROVISION")
 
 EXPECTED_STEPS = {

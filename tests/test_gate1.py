@@ -1,21 +1,17 @@
 """Gate 1 planning-coverage audit (forward / backward / no-paper-claim)."""
 
-import sys
 from pathlib import Path
 
 import pytest
 from rdflib import BNode
 from rdflib.namespace import RDF
 
-_ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(_ROOT / "order-compiler"))
+from compliance_engine.order_compiler import gate1
+from compliance_engine.ontology.prefixes import CE, CMMC, SYSML
+from compliance_engine.pipeline.dataset import create_dataset, graph_for, load_into
 
-import gate1  # noqa: E402
-from ontology.prefixes import CE, CMMC, SYSML  # noqa: E402
-from pipeline.dataset import create_dataset, graph_for, load_into  # noqa: E402
-
-CATALOG = _ROOT / "ontology" / "cmmc-edit.ttl"
-TIER1 = _ROOT / "structural" / "tier1.ttl"
+CATALOG = Path(__file__).resolve().parent.parent / "data" / "ontology" / "cmmc-edit.ttl"
+TIER1 = Path(__file__).resolve().parent.parent / "data" / "structural" / "tier1.ttl"
 
 # The full Tier-1-covered required set (== the 22 controls tier1 claims).
 FULL_REQUIRED = {
@@ -28,7 +24,6 @@ FULL_REQUIRED = {
     "SI.L2-3.14.3", "SI.L2-3.14.6",
     "PE.L2-3.10.1", "PE.L2-3.10.2",
 }
-
 
 @pytest.fixture()
 def ds():
@@ -46,7 +41,6 @@ def ds():
         struct.remove((rel, SYSML.satisfiedRequirement, CMMC["AC.L2-3.1.12"]))
     return d
 
-
 def test_full_coverage_passes(ds):
     report = gate1.run_gate1(FULL_REQUIRED, ds)
     assert report.passed
@@ -54,7 +48,6 @@ def test_full_coverage_passes(ds):
     # every required control maps to ≥1 module; all 10 modules included.
     assert len(report.included_modules) == 10
     assert all(report.forward_map[c] for c in FULL_REQUIRED)
-
 
 def test_forward_gap_names_control_and_weight(ds):
     """A required 5-point control with no claiming module ⇒ forward FAIL."""
@@ -65,7 +58,6 @@ def test_forward_gap_names_control_and_weight(ds):
     assert report.gap_controls() == ["AC.L2-3.1.12"]
     (failure,) = report.forward.failures
     assert failure.details["weight"] == 5
-
 
 def test_backward_orphan_flagged(ds):
     """An included module claiming no required control ⇒ orphan (backward FAIL)."""
@@ -78,7 +70,6 @@ def test_backward_orphan_flagged(ds):
     assert not report.backward.passed
     assert report.orphan_modules() == ["CMEK_KeyRing"]
     assert report.forward.passed  # the MFA controls are still covered
-
 
 def test_paper_claim_without_verification_method_rejected(ds):
     """A module claiming a required control but with no cmmc:verificationMethod
@@ -98,14 +89,12 @@ def test_paper_claim_without_verification_method_rejected(ds):
     assert not report.untestable.passed
     assert "PaperClaim" in report.paper_claim_modules()
 
-
 def test_render_reports_status(ds):
     ok = gate1.run_gate1(FULL_REQUIRED, ds).render()
     assert "PASS" in ok
     bad = gate1.run_gate1(FULL_REQUIRED | {"AC.L2-3.1.12"}, ds).render()
     assert "FAIL" in bad
     assert "AC.L2-3.1.12" in bad
-
 
 def test_empty_required_is_vacuously_covered(ds):
     report = gate1.run_gate1(set(), ds)

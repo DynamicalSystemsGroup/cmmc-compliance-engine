@@ -21,14 +21,14 @@ import json
 
 from rdflib import Graph, URIRef
 
-from ontology.prefixes import CE, CMMC, G_AUDIT, G_EVIDENCE, G_ATTESTATIONS
-from pipeline.dataset import create_dataset, graph_for
-from evidence.binding import bind_config_evidence, CollectionMetadata
-from evidence.generators import EvidenceArtifact
-from oracles.criteria import CRITERIA, evaluate
-from oracles.assertion import emit_control_check_assertion
-from traceability.attestation import request_attestation, OUTCOME_PASSED
-from traceability.verification import verify
+from compliance_engine.ontology.prefixes import CE, CMMC, G_AUDIT, G_EVIDENCE, G_ATTESTATIONS
+from compliance_engine.pipeline.dataset import create_dataset, graph_for
+from compliance_engine.pipeline.evidence.binding import bind_config_evidence, CollectionMetadata
+from compliance_engine.pipeline.evidence.generators import EvidenceArtifact
+from compliance_engine.oracles.criteria import CRITERIA, evaluate
+from compliance_engine.oracles.assertion import emit_control_check_assertion
+from compliance_engine.traceability.attestation import request_attestation, OUTCOME_PASSED
+from compliance_engine.traceability.verification import verify
 
 _NOW = "2026-07-02T00:00:00+00:00"
 
@@ -39,7 +39,7 @@ _PASSING = {
     "AC.L2-3.1.1": {"unauthorized_principals": 0},
 }
 _CATALOG = Graph()
-_CATALOG.parse("ontology/cmmc-edit.ttl", format="turtle")
+_CATALOG.parse("data/ontology/cmmc-edit.ttl", format="turtle")
 
 
 # ---------------------------------------------------------------------------

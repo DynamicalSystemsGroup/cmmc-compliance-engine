@@ -20,11 +20,11 @@ import pytest
 from rdflib import Dataset, Graph
 from rdflib.namespace import RDF
 
-from ontology.prefixes import CE, G_EVIDENCE, G_ONTOLOGY
-from pipeline.backends import get_backend
-from pipeline.backends.base import BackendUnavailable, StoreBackend
-from pipeline.backends.local import LocalBackend
-from pipeline.dataset import create_dataset, graph_for
+from compliance_engine.ontology.prefixes import CE, G_EVIDENCE, G_ONTOLOGY
+from compliance_engine.pipeline.backends import get_backend
+from compliance_engine.pipeline.backends.base import BackendUnavailable, StoreBackend
+from compliance_engine.pipeline.backends.local import LocalBackend
+from compliance_engine.pipeline.dataset import create_dataset, graph_for
 
 
 @pytest.fixture()

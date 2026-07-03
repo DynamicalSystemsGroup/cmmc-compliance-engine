@@ -9,12 +9,12 @@ from __future__ import annotations
 from rdflib import Dataset, Graph, Literal, URIRef
 from rdflib.namespace import RDF
 
-from ontology.prefixes import (
+from compliance_engine.ontology.prefixes import (
     CE, CMMC, EARL,
     G_ORDER, G_STRUCTURAL, G_EVIDENCE, G_ATTESTATIONS,
 )
-import traceability.audit as audit_mod
-from traceability.audit import audit, compute_sprs, render_report
+import compliance_engine.traceability.audit as audit_mod
+from compliance_engine.traceability.audit import audit, compute_sprs, render_report
 
 
 # ---------------------------------------------------------------------------

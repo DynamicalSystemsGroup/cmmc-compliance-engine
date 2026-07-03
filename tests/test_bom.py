@@ -1,26 +1,24 @@
 """BOM assembly + hash-reference into the registry."""
 
-import sys
 from pathlib import Path
 
 import pytest
 
-_ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(_ROOT / "order-compiler"))
+from pathlib import Path
 
-import compiler  # noqa: E402
-import cop  # noqa: E402
-from rdflib import Literal  # noqa: E402
-from rdflib.namespace import RDF  # noqa: E402
+from compliance_engine.order_compiler import compiler
+from compliance_engine.order_compiler import cop
+from rdflib import Literal
+from rdflib.namespace import RDF
 
-from ontology.prefixes import CE, CMMC  # noqa: E402
-from pipeline.backends.local import LocalBackend  # noqa: E402
-from pipeline.dataset import create_dataset, graph_for, load_into  # noqa: E402
-from pipeline.provision import FakeProvisionBackend  # noqa: E402
-from pipeline.provision.base import PlanResult, PlannedResource  # noqa: E402
-from pipeline.registry import ContentMismatch, Registry, content_hash  # noqa: E402
-from pipeline.runner import run_factory  # noqa: E402
-from pipeline.state import (  # noqa: E402
+from compliance_engine.ontology.prefixes import CE, CMMC
+from compliance_engine.pipeline.backends.local import LocalBackend
+from compliance_engine.pipeline.dataset import create_dataset, graph_for, load_into
+from compliance_engine.pipeline.provision import FakeProvisionBackend
+from compliance_engine.pipeline.provision.base import PlanResult, PlannedResource
+from compliance_engine.pipeline.registry import ContentMismatch, Registry, content_hash
+from compliance_engine.pipeline.runner import run_factory
+from compliance_engine.pipeline.state import (
     ApplyStageResult,
     EvidenceStageResult,
     FetchResult,
@@ -30,13 +28,11 @@ from pipeline.state import (  # noqa: E402
     PlanStageResult,
     PolicyCheckResult,
 )
-from traceability import bom as bommod  # noqa: E402
-from traceability.attestation import OUTCOME_PASSED, request_attestation  # noqa: E402
+from compliance_engine.traceability import bom as bommod
+from compliance_engine.traceability.attestation import OUTCOME_PASSED, request_attestation
 
-CATALOG = _ROOT / "ontology" / "cmmc-edit.ttl"
+CATALOG = Path(__file__).resolve().parent.parent / "data" / "ontology" / "cmmc-edit.ttl"
 NOW = "2026-07-02T00:00:00+00:00"
-
-
 # ---------------------------------------------------------------------------
 # Real Factory state (rich: real evidence + oracle outcomes + attestations)
 # ---------------------------------------------------------------------------
@@ -54,8 +50,6 @@ def _factory_state(attest: list[str] | None = None):
                             adequacy="adequate", sufficiency="sufficient",
                             outcome=OUTCOME_PASSED)
     return state, ds
-
-
 # ---------------------------------------------------------------------------
 # Hand-assembled mini state (controlled artifact bytes for registry tests)
 # ---------------------------------------------------------------------------
@@ -68,8 +62,6 @@ _ART = {
 }
 OH, MH, SH, EH = (content_hash(_ART[k]) for k in ("order", "module", "state", "evidence"))
 ARTIFACTS = {OH: _ART["order"], MH: _ART["module"], SH: _ART["state"], EH: _ART["evidence"]}
-
-
 def _mini_state():
     ds = create_dataset()
     load_into(ds, "ontology", CATALOG)
@@ -105,8 +97,6 @@ def _mini_state():
                                       assertion_iris=())
     state.policy_check = PolicyCheckResult(passed=True, findings=(), oracle_outcomes={})
     return state, ds
-
-
 # ---------------------------------------------------------------------------
 # Happy path + determinism
 # ---------------------------------------------------------------------------
@@ -130,16 +120,12 @@ def test_bom_references_every_artifact_and_hash_recomputes(tmp_path):
     assert set(bom.module_hashes.values()) <= refs
     assert set(bom.evidence_hashes) <= refs
     assert bom.hash_reference(reg) == f"registry://{bom.bom_hash}"
-
-
 def test_control_mapping_covers_every_required_control():
     state, ds = _factory_state()
     bom = bommod.build_bom(state, ds, "NV012")
     mapped = {r.control_id for r in bom.control_mapping}
     assert mapped == set(state.load_order.required_controls)
     assert len(bom.control_mapping) == 22
-
-
 # ---------------------------------------------------------------------------
 # R12 — evidentiary status propagation
 # ---------------------------------------------------------------------------
@@ -148,8 +134,6 @@ def test_mock_input_makes_bom_mock():
     state, ds = _factory_state()
     bom = bommod.build_bom(state, ds, "NV012")
     assert bom.evidentiary_status == "mock"
-
-
 # ---------------------------------------------------------------------------
 # Status is driven by the ATTESTATION, not the oracle
 # ---------------------------------------------------------------------------
@@ -174,8 +158,6 @@ def test_status_requires_attestation_not_just_oracle():
     # attestations[] carries the one Gate-2 record.
     assert {a.control_id for a in bom.attestations} == {"IA.L2-3.5.3"}
     assert bom.attestations[0].role == "Affirming Official"
-
-
 # ---------------------------------------------------------------------------
 # Write-once / idempotent registry
 # ---------------------------------------------------------------------------
@@ -189,8 +171,6 @@ def test_store_is_idempotent(tmp_path):
     assert h1 == h2 == bom.bom_hash
     # Single stored object for the BOM.
     assert reg.has(bom.bom_hash)
-
-
 def test_write_once_rejects_different_bytes_under_existing_hash(tmp_path):
     state, ds = _mini_state()
     bom = bommod.build_bom(state, ds, "NV012")
@@ -200,8 +180,6 @@ def test_write_once_rejects_different_bytes_under_existing_hash(tmp_path):
     reg._object_path(bom.bom_hash).write_bytes(b"tampered-bom-bytes")
     with pytest.raises(ContentMismatch):
         reg.put(bom.canonical_bytes())
-
-
 # ---------------------------------------------------------------------------
 # Two-level index integration
 # ---------------------------------------------------------------------------
@@ -218,8 +196,6 @@ def test_two_level_index_resolves_contract_to_artifacts(tmp_path):
     arts = set(reg.bom_artifacts(bom_hash))
     assert arts == set(bom.artifact_hashes())
     assert {OH, MH, SH, EH} <= arts
-
-
 # ---------------------------------------------------------------------------
 # Tamper detection
 # ---------------------------------------------------------------------------

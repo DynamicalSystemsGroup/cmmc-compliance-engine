@@ -11,6 +11,10 @@ dependencies = [
     "httpx>=0.28.1",
 ]
 
+[project.scripts]
+ce = "compliance_engine.cli:main"
+compliance-engine = "compliance_engine.cli:main"
+
 [dependency-groups]
 dev = [
     "pytest>=8.0",
@@ -21,8 +25,8 @@ notebook = [
 ]
 
 [tool.pytest.ini_options]
-# Inherit the ADCS discipline: package importable from repo root; skip live/network by default.
-pythonpath = ["."]
+# src layout: package lives under src/compliance_engine/
+pythonpath = ["src", "."]
 addopts = "-m 'not live and not network'"
 markers = [
     "live: opt-in tests that hit live services",

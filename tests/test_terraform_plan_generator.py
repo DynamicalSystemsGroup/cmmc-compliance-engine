@@ -17,16 +17,16 @@ import pytest
 
 from rdflib import Graph
 
-from ontology.prefixes import CE, CMMC, bind_prefixes
-from evidence.binding import bind_evidence
-from evidence.generators.terraform_plan import (
+from compliance_engine.ontology.prefixes import CE, CMMC, bind_prefixes
+from compliance_engine.pipeline.evidence.binding import bind_evidence
+from compliance_engine.pipeline.evidence.generators.terraform_plan import (
     REGION_CONTROL,
     TerraformPlanGenerator,
     TerraformUnavailable,
 )
 
 _REPO = Path(__file__).resolve().parents[1]
-_TF_DIR = _REPO / "terraform" / "tier1"
+_TF_DIR = _REPO / "infrastructure" / "terraform" / "tier1"
 _HAS_TF = shutil.which("terraform") is not None
 
 # Skip terraform-invoking tests when the binary is absent (suite stays green).
@@ -35,7 +35,7 @@ requires_terraform = pytest.mark.skipif(not _HAS_TF, reason="terraform binary no
 
 def _tier1_modules() -> set[str]:
     """The ce:<Module> PartUsage names declared in structural/tier1.ttl."""
-    ttl = (_REPO / "structural" / "tier1.ttl").read_text(encoding="utf-8")
+    ttl = (_REPO / "data" / "structural" / "tier1.ttl").read_text(encoding="utf-8")
     return set(re.findall(r"ce:(\w+)\s+a\s+sysml:PartUsage", ttl))
 
 

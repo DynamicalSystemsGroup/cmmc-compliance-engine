@@ -8,6 +8,7 @@ __pycache__/
 .venv/
 .pytest_cache/
 .ruff_cache/
+*.egg-info/
 
 # Claude
 .claude
@@ -15,8 +16,11 @@ __pycache__/
 # Secrets / env (OIDC short-lived only; no long-lived creds committed)
 .env
 
+# Output / generated artifacts (NOT committed)
+output/
+artifacts/
+
 # Never commit CUI or live evidence exports
-evidence/exports/
 *.cui
 
 # multi-agent orchestration scratch

@@ -14,15 +14,16 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+
 import pytest
 from rdflib import Graph, Namespace, URIRef
 
-from oracles.attested_reference import (
+from compliance_engine.oracles.attested_reference import (
     AO_ROLE,
     ReferenceView,
     evaluate_attested_reference,
 )
-from oracles.freshness import (
+from compliance_engine.oracles.freshness import (
     ANNUAL,
     EVENT_BASED,
     POLICY_DAYS,
@@ -30,7 +31,7 @@ from oracles.freshness import (
     check_freshness,
     resolve_policy,
 )
-from traceability.attestation_store import (
+from compliance_engine.traceability.attestation_store import (
     SIG_ALGO_COSIGN_V1,
     SIG_ALGO_NONE,
     VALID_ROLES,
@@ -41,9 +42,7 @@ from traceability.attestation_store import (
     load_file,
 )
 
-_ROOT = Path(__file__).resolve().parent.parent
 NOW = datetime(2026, 7, 3, tzinfo=timezone.utc)
-
 
 # ---------------------------------------------------------------------------
 # freshness
@@ -92,7 +91,6 @@ class TestFreshness:
     def test_all_policy_names_map_to_ints(self):
         assert all(isinstance(v, int) and v >= 0 for v in POLICY_DAYS.values())
 
-
 # ---------------------------------------------------------------------------
 # attested-reference oracle — the six-branch decision tree
 # ---------------------------------------------------------------------------
@@ -103,7 +101,6 @@ def _ref(**kw):
     base.update(kw)
     return ReferenceView(**base)
 
-
 def _att(**kw):
     base = dict(
         id="att-1", signer="ao@dsg", signer_role="Role_AffirmingOfficial",
@@ -113,7 +110,6 @@ def _att(**kw):
     )
     base.update(kw)
     return AttestationRecord(**base)
-
 
 class TestAttestedReferenceOracle:
     def test_no_reference_registered_yields_needsAction(self):
@@ -206,7 +202,6 @@ class TestAttestedReferenceOracle:
                                         "Role_SecurityOfficer", [old, new], now=NOW)
         assert r.outcome == "passed"
 
-
 # ---------------------------------------------------------------------------
 # attestation JSONL store
 # ---------------------------------------------------------------------------
@@ -293,7 +288,6 @@ class TestAttestationStore:
         assert VALID_ROLES == {"Role_AffirmingOfficial", "Role_SecurityOfficer",
                                 "Role_ITAdmin", "Role_OPs"}
 
-
 # ---------------------------------------------------------------------------
 # End-to-end — every Track B module resolves to PASS against the real files
 # ---------------------------------------------------------------------------
@@ -305,8 +299,8 @@ class TestTrackBEndToEnd:
 
     def test_every_track_b_control_passes(self):
         g = Graph()
-        g.parse(_ROOT / "structural" / "tier1.ttl", format="turtle")
-        g.parse(_ROOT / "structural" / "references.ttl", format="turtle")
+        g.parse(Path(__file__).resolve().parent.parent / "data" / "structural" / "tier1.ttl", format="turtle")
+        g.parse(Path(__file__).resolve().parent.parent / "data" / "structural" / "references.ttl", format="turtle")
 
         CE = Namespace("http://dynamicalsystems.group/compliance-engine/")
 
@@ -340,7 +334,7 @@ class TestTrackBEndToEnd:
             lv = datetime.fromisoformat(str(next(g.objects(ref, CE.lastVerified))))
             return ReferenceView(id=rid, uri=uri, freshness_days=fd, last_verified=lv)
 
-        atts = load_all(_ROOT / "attestations")
+        atts = load_all(Path(__file__).resolve().parent.parent / "data" / "attestations")
         assert len(atts) == 16
 
         results = {}

@@ -28,12 +28,12 @@ import pytest
 from rdflib import Literal, URIRef
 from rdflib.namespace import RDF
 
-from ontology.prefixes import CMMC, CE, SYSML
-from pipeline.dataset import create_dataset, graph_for, load_into
+from compliance_engine.ontology.prefixes import CMMC, CE, SYSML
+from compliance_engine.pipeline.dataset import create_dataset, graph_for, load_into
 
 ROOT = Path(__file__).resolve().parent.parent
-CMMC_EDIT = ROOT / "ontology" / "cmmc-edit.ttl"
-TIER1 = ROOT / "structural" / "tier1.ttl"
+CMMC_EDIT = ROOT / "data" / "ontology" / "cmmc-edit.ttl"
+TIER1 = ROOT / "data" / "structural" / "tier1.ttl"
 
 CONTROL = CMMC.Control
 CONTROLS_SATISFIED = CMMC.controlsSatisfied

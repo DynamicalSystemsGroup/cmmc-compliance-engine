@@ -17,12 +17,12 @@ from typer.testing import CliRunner
 
 from types import SimpleNamespace
 
-from ontology.prefixes import CE, CMMC, EARL, GSN, PROV
-from pipeline.dataset import create_dataset, graph_for, load_into
-from traceability.audit import ContradictionRow, ProvenVsAttested
-from traceability.bom import BOM
-from traceability.sprs import SprsResult
-from documents.ssp import (
+from compliance_engine.ontology.prefixes import CE, CMMC, EARL, GSN, PROV
+from compliance_engine.pipeline.dataset import create_dataset, graph_for, load_into
+from compliance_engine.traceability.audit import ContradictionRow, ProvenVsAttested
+from compliance_engine.traceability.bom import BOM
+from compliance_engine.traceability.sprs import SprsResult
+from compliance_engine.documents.ssp import (
     SprsSummary,
     app,
     compile_ssp,
@@ -33,8 +33,8 @@ from documents.ssp import (
 )
 
 _REPO = Path(__file__).resolve().parents[1]
-_CATALOG = _REPO / "ontology" / "cmmc-edit.ttl"
-_TIER1 = _REPO / "structural" / "tier1.ttl"
+_CATALOG = _REPO / "data" / "ontology" / "cmmc-edit.ttl"
+_TIER1 = _REPO / "data" / "structural" / "tier1.ttl"
 
 runner = CliRunner()
 
@@ -141,7 +141,7 @@ class TestVcrm:
     def test_all_110_controls_listed_with_status(self):
         ds = _base_dataset()
         doc = compile_ssp(ds)
-        from documents.queries import CONTROLS_FULL, query_to_dicts
+        from compliance_engine.documents.queries import CONTROLS_FULL, query_to_dicts
         ids = [r["controlId"] for r in query_to_dicts(ds, CONTROLS_FULL)]
         assert len(ids) == 110
         for cid in ids:

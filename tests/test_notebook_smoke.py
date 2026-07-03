@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import pytest
 
-from notebook import _engine
+from notebooks import _engine
 
 
 def test_all_covered_completes_with_full_score():
@@ -81,6 +81,6 @@ def test_named_graphs_are_populated_after_a_run():
 def test_notebook_file_is_a_valid_marimo_app():
     # Only meaningful when the `notebook` dependency group is installed.
     marimo = pytest.importorskip("marimo")
-    from notebook import compliance_walkthrough as nb
+    from notebooks import compliance_walkthrough as nb
 
     assert isinstance(nb.app, marimo.App)

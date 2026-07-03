@@ -1,35 +1,27 @@
 """COP build + human attestation (per-deliverable affirmation + spillover)."""
 
-import sys
 from pathlib import Path
 
 import pytest
 from rdflib import URIRef
 
-_ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(_ROOT / "order-compiler"))
+from compliance_engine.order_compiler import cop
+from compliance_engine.order_compiler import rule_library as rl
+from compliance_engine.ontology.prefixes import CE, EARL, PROV
+from rdflib.namespace import RDF
+from compliance_engine.pipeline.dataset import create_dataset, graph_for, load_into
 
-import cop  # noqa: E402
-import rule_library as rl  # noqa: E402
-from ontology.prefixes import CE, EARL, PROV  # noqa: E402
-from rdflib.namespace import RDF  # noqa: E402
-from pipeline.dataset import create_dataset, graph_for, load_into  # noqa: E402
-
-CATALOG = _ROOT / "ontology" / "cmmc-edit.ttl"
-TIER1 = _ROOT / "structural" / "tier1.ttl"
-COP_DRAFT = _ROOT / "fixtures" / "nv012" / "cop_draft.ttl"
-OBLIGATIONS = _ROOT / "order-compiler" / "obligations.ttl"
+CATALOG = Path(__file__).resolve().parent.parent / "data" / "ontology" / "cmmc-edit.ttl"
+TIER1 = Path(__file__).resolve().parent.parent / "data" / "structural" / "tier1.ttl"
+COP_DRAFT = Path(__file__).resolve().parent.parent / "fixtures" / "nv012" / "cop_draft.ttl"
+OBLIGATIONS = Path(__file__).resolve().parent.parent / "src" / "compliance_engine" / "order_compiler" / "obligations.ttl"
 NOW = "2026-07-02T00:00:00+00:00"
-
-
 def _base_ds():
     d = create_dataset()
     load_into(d, "ontology", CATALOG)
     load_into(d, "structural", TIER1)
     load_into(d, "order", COP_DRAFT)
     return d
-
-
 def test_attest_cop_records_manual_assertion_in_order_graph():
     ds = _base_ds()
     obl = rl.load_obligations(COP_DRAFT)
@@ -44,8 +36,6 @@ def test_attest_cop_records_manual_assertion_in_order_graph():
     assert (a, CE.attestsCOP, att.cop_iri) in order_g
     assert (a, CE.outcome, EARL.passed) in order_g
     assert (a, CE.attestationMode, EARL.manual) in order_g
-
-
 def test_auto_flag_downgrades_to_semiauto():
     ds = _base_ds()
     obl = rl.load_obligations(COP_DRAFT)
@@ -53,8 +43,6 @@ def test_auto_flag_downgrades_to_semiauto():
     assert att.mode == "semiAuto"
     order_g = graph_for(ds, "order")
     assert (att.attestation_iri, CE.attestationMode, EARL.semiAuto) in order_g
-
-
 def test_plain_deliverable_forces_no_env_control_affirmation():
     ds = _base_ds()
     obl = rl.load_obligations(COP_DRAFT)
@@ -68,8 +56,6 @@ def test_plain_deliverable_forces_no_env_control_affirmation():
     aff = CE["affirmation/OBL-NV012-DELIV-TOOL"]
     assert (aff, RDF.type, CE.DeliverableAffirmation) in order_g
     assert (att.attestation_iri, CE.hasAffirmation, aff) in order_g
-
-
 def test_cui_marked_deliverable_surfaces_spillover_before_gate1():
     """The canonical COP's OBL-VENDOR-PORTAL (CUI deliverable) must NOT be
     silently affirmed — attest_cop re-raises SpilloverReviewRequired."""
@@ -78,8 +64,6 @@ def test_cui_marked_deliverable_surfaces_spillover_before_gate1():
     with pytest.raises(rl.SpilloverReviewRequired) as exc:
         cop.attest_cop(ds, canon, auto=True, now=NOW)
     assert exc.value.obligation.name == "OBL-VENDOR-PORTAL"
-
-
 def test_acknowledged_spillover_is_not_auto_affirmed():
     """When the officer acknowledges the spillover, attestation proceeds but the
     CUI deliverable does NOT receive a 'no environment control' affirmation."""
@@ -94,8 +78,6 @@ def test_acknowledged_spillover_is_not_auto_affirmed():
     assert att.affirmations.get("OBL-AUDIT-EVIDENCE") is True
     # ... the CUI deliverable is NOT.
     assert "OBL-VENDOR-PORTAL" not in att.affirmations
-
-
 def test_officer_agent_declared():
     ds = _base_ds()
     obl = rl.load_obligations(COP_DRAFT)
@@ -103,3 +85,4 @@ def test_officer_agent_declared():
     order_g = graph_for(ds, "order")
     assert (att.officer, RDF.type, PROV.Agent) in order_g
     assert isinstance(att.officer, URIRef)
+

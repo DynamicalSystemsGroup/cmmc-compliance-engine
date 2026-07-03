@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from rdflib import Graph
 
-from evidence.hashing import (
+from compliance_engine.pipeline.evidence.hashing import (
     hash_check_result,
     hash_config_export,
     hash_evidence,

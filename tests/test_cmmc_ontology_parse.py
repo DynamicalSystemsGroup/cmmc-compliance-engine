@@ -8,8 +8,8 @@ from pathlib import Path
 from rdflib import Graph, Namespace, RDF, Literal
 
 ROOT = Path(__file__).resolve().parent.parent
-EDIT_TTL = ROOT / "ontology" / "cmmc-edit.ttl"
-SHAPES_TTL = ROOT / "ontology" / "cmmc_shapes.ttl"
+EDIT_TTL = ROOT / "data" / "ontology" / "cmmc-edit.ttl"
+SHAPES_TTL = ROOT / "data" / "ontology" / "cmmc_shapes.ttl"
 
 CMMC = Namespace("http://dynamicalsystems.group/ontology/cmmc#")
 SH = Namespace("http://www.w3.org/ns/shacl#")

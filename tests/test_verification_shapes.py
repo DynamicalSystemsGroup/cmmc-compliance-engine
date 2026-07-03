@@ -11,13 +11,13 @@ from __future__ import annotations
 from rdflib import BNode, Graph, Literal, URIRef
 from rdflib.namespace import RDF
 
-from ontology.prefixes import CE, CMMC, EARL, GSN, PROV
-from traceability.attestation import (
+from compliance_engine.ontology.prefixes import CE, CMMC, EARL, GSN, PROV
+from compliance_engine.traceability.attestation import (
     PLAN_STANDARD_PROCEDURE,
     ROLE_AFFIRMING_OFFICIAL,
 )
-from traceability.verification import verify, verify_reverification
-from evidence.hashing import hash_config_export, hash_evidence
+from compliance_engine.traceability.verification import verify, verify_reverification
+from compliance_engine.pipeline.evidence.hashing import hash_config_export, hash_evidence
 
 _CONTROL = CMMC["AC.L2-3.1.1"]
 

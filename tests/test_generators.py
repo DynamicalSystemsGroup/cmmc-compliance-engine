@@ -12,10 +12,10 @@ import json
 
 import pytest
 
-from evidence.binding import CollectionMetadata
-from evidence.generators import EvidenceArtifact, Generator, GeneratorContext
-from evidence.generators.mock_config import MockConfigExportGenerator
-from evidence.generators.mock_policy import MockPolicyCheckGenerator
+from compliance_engine.pipeline.evidence.binding import CollectionMetadata
+from compliance_engine.pipeline.evidence.generators import EvidenceArtifact, Generator, GeneratorContext
+from compliance_engine.pipeline.evidence.generators.mock_config import MockConfigExportGenerator
+from compliance_engine.pipeline.evidence.generators.mock_policy import MockPolicyCheckGenerator
 
 # summary keys the oracles read (must stay aligned with oracles/criteria.py).
 # 5 Tier-1 keys + 45 Track A summary keys across 13 fixture files.

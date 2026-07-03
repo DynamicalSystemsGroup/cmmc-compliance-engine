@@ -13,7 +13,7 @@ import pytest
 from rdflib import Dataset, URIRef
 from rdflib.namespace import RDF, XSD
 
-from oracles.criteria import (
+from compliance_engine.oracles.criteria import (
     CRITERIA,
     OUTCOME_CANTTELL,
     OUTCOME_FAILED,
@@ -22,8 +22,8 @@ from oracles.criteria import (
     OracleResult,
     evaluate,
 )
-from oracles.assertion import emit_control_check_assertion
-from ontology.prefixes import CE, CMMC, EARL, G_AUDIT, G_EVIDENCE, PROV
+from compliance_engine.oracles.assertion import emit_control_check_assertion
+from compliance_engine.ontology.prefixes import CE, CMMC, EARL, G_AUDIT, G_EVIDENCE, PROV
 
 
 # ---------------------------------------------------------------------------

@@ -21,40 +21,31 @@ semantic assertions.)
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
 import pytest
 
-_ROOT = Path(__file__).resolve().parent.parent
-if str(_ROOT) not in sys.path:
-    sys.path.insert(0, str(_ROOT))
-if str(_ROOT / "order-compiler") not in sys.path:
-    sys.path.insert(0, str(_ROOT / "order-compiler"))
+from compliance_engine.order_compiler import compiler
+from compliance_engine.order_compiler import cop
+from compliance_engine.order_compiler import rule_library as rl
+from rdflib.namespace import RDF
 
-import compiler  # noqa: E402
-import cop  # noqa: E402
-import rule_library as rl  # noqa: E402
-from rdflib.namespace import RDF  # noqa: E402
-
-from ontology.prefixes import CE  # noqa: E402
-from pipeline.backends.local import LocalBackend  # noqa: E402
-from pipeline.dataset import graph_for  # noqa: E402
-from pipeline.provision import FakeProvisionBackend  # noqa: E402
-from pipeline.registry import Registry  # noqa: E402
-from pipeline.runner import run_factory  # noqa: E402
-from traceability import audit as auditmod  # noqa: E402
-from traceability import bom as bommod  # noqa: E402
-from traceability.attestation import (  # noqa: E402
+from compliance_engine.ontology.prefixes import CE
+from compliance_engine.pipeline.backends.local import LocalBackend
+from compliance_engine.pipeline.dataset import graph_for
+from compliance_engine.pipeline.provision import FakeProvisionBackend
+from compliance_engine.pipeline.registry import Registry
+from compliance_engine.pipeline.runner import run_factory
+from compliance_engine.traceability import audit as auditmod
+from compliance_engine.traceability import bom as bommod
+from compliance_engine.traceability.attestation import (
     OUTCOME_FAILED,
     OUTCOME_PASSED,
     request_attestation,
 )
-from documents.ssp import compile_ssp_from_run  # noqa: E402
+from compliance_engine.documents.ssp import compile_ssp_from_run
 
 NOW = "2026-07-02T00:00:00+00:00"
-
-
 # --------------------------------------------------------------------------- #
 # Helpers
 # --------------------------------------------------------------------------- #
@@ -65,8 +56,6 @@ def _compile_order():
     att = cop.attest_cop(ds, obl, auto=True, now=NOW)
     order = compiler.compile_order(ds, obl, att, now=NOW)
     return ds, order
-
-
 def _run_factory(ds, order, evidence_set):
     return run_factory(
         ds, order.iri,
@@ -76,24 +65,18 @@ def _run_factory(ds, order, evidence_set):
         now=NOW,
         run_preflight=False,
     )
-
-
 def _attest_met(ds, controls, **kw):
     for cid in controls:
         request_attestation(ds, cid, "Jane Official", auto_attest=True,
                             adequacy="Implementation adequate.",
                             sufficiency="Evidence sufficient for MET.",
                             outcome=OUTCOME_PASSED, **kw)
-
-
 def _vcrm_status(doc: str, control_id: str) -> str:
     """The Status cell (column 6) for a control's VCRM row."""
     for line in doc.splitlines():
         if line.startswith(f"| {control_id} |"):
             return line.split("|")[6].strip()
     raise AssertionError(f"{control_id} not found in the VCRM")
-
-
 # --------------------------------------------------------------------------- #
 # Scenario 1 — AE happy path (all-covered)
 # --------------------------------------------------------------------------- #
@@ -168,8 +151,6 @@ class TestHappyPathAllCovered:
         assert reg.bom_artifacts(bom_hash) == bom.artifact_hashes()
         assert bom.order_hash in reg.bom_artifacts(bom_hash)
         assert bommod.verify_bom(bom, reg) is True
-
-
 # --------------------------------------------------------------------------- #
 # Scenario 2 — Gate 1 error path (gap)
 # --------------------------------------------------------------------------- #
@@ -180,7 +161,7 @@ class TestGate1GapRefusesOrder:
         genuinely unclaimed, then require it. Gate 1 must refuse and the
         Factory must never run. Track A+B now claim all 110 controls, so the
         strip is how we synthesize a real coverage gap for this test."""
-        from ontology.prefixes import CMMC, SYSML
+        from compliance_engine.ontology.prefixes import CMMC, SYSML
         ds, obl = compiler.load_pipeline_dataset()
 
         struct = graph_for(ds, "structural")
@@ -206,8 +187,6 @@ class TestGate1GapRefusesOrder:
         # The Order was NOT emitted → the Factory has nothing to run.
         order_g = graph_for(ds, "order")
         assert (CE["Order-NV012"], RDF.type, CE.Order) not in order_g
-
-
 # --------------------------------------------------------------------------- #
 # Scenario 3 — Gate 2 + R13 error path (contradiction)
 # --------------------------------------------------------------------------- #

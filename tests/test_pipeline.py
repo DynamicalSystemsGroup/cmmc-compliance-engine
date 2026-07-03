@@ -4,31 +4,27 @@ Refuse-first: the safety-valve test is written first so a non-compliant plan is
 proven to HALT before Apply before any happy path.
 """
 
-import sys
 from pathlib import Path
 
 import pytest
 from rdflib import Literal
 from rdflib.namespace import RDF
 
-_ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(_ROOT / "order-compiler"))
 
-import compiler  # noqa: E402
-import cop  # noqa: E402
-from ontology.prefixes import CE, EARL, G_PLAN_EXECUTION, P_PLAN  # noqa: E402
-from pipeline.backends.local import LocalBackend  # noqa: E402
-from pipeline.dataset import graph_for  # noqa: E402
-from pipeline.plan_execution import STEP_NAMES  # noqa: E402
-from pipeline.provision import FakeProvisionBackend  # noqa: E402
-from pipeline.runner import OrderVerificationError, _run_preflight, run_factory  # noqa: E402
-from pipeline.state import PipelineState  # noqa: E402
+from compliance_engine.order_compiler import compiler
+from compliance_engine.order_compiler import cop
+from compliance_engine.ontology.prefixes import CE, EARL, G_PLAN_EXECUTION, P_PLAN
+from compliance_engine.pipeline.backends.local import LocalBackend
+from compliance_engine.pipeline.dataset import graph_for
+from compliance_engine.pipeline.plan_execution import STEP_NAMES
+from compliance_engine.pipeline.provision import FakeProvisionBackend
+from compliance_engine.pipeline.runner import OrderVerificationError, _run_preflight, run_factory
+from compliance_engine.pipeline.state import PipelineState
 
 NOW = "2026-07-02T00:00:00+00:00"
 
 FACTORY_STAGES = ["LoadOrder", "FetchByHash", "Plan", "PolicyCheck",
                   "Apply", "CollectEvidence", "Oracles"]
-
 
 def _attested_order_ds():
     """A ds with catalog+tier1+COP loaded and a verified NV012 Order emitted."""
@@ -36,7 +32,6 @@ def _attested_order_ds():
     att = cop.attest_cop(ds, obl, auto=True, now=NOW)
     order = compiler.compile_order(ds, obl, att, now=NOW)
     return ds, order
-
 
 # ---------------------------------------------------------------------------
 # SAFETY VALVE — proven first
@@ -61,7 +56,6 @@ def test_policy_failure_halts_before_apply():
     # Plan+PolicyCheck activities emitted; Apply activity NOT emitted.
     assert "PolicyCheck" in state.stage_activities
     assert "Apply" not in state.stage_activities
-
 
 # ---------------------------------------------------------------------------
 # HAPPY PATH
@@ -92,7 +86,6 @@ def test_happy_path_runs_all_stages():
     assert set(state.oracles.outcomes.values()) <= {"passed", "failed", "cantTell"}
     assert any(v == "passed" for v in state.oracles.outcomes.values())
 
-
 def test_each_stage_emits_one_plan_activity():
     ds, order = _attested_order_ds()
     state = run_factory(
@@ -107,7 +100,6 @@ def test_each_stage_emits_one_plan_activity():
     for stage in FACTORY_STAGES:
         assert steps.get(stage) == 1, f"stage {stage}: {steps.get(stage)} activities"
 
-
 def test_no_bom_built_by_factory():
     """The Factory collects raw results only — BOM assembly is a separate post-step."""
     ds, order = _attested_order_ds()
@@ -119,7 +111,6 @@ def test_no_bom_built_by_factory():
     # No BOM node types emitted anywhere in the dataset.
     for _s, _p, o, _c in state.ds.quads((None, RDF.type, None)):
         assert "BOM" not in str(o) and "BillOfMaterials" not in str(o)
-
 
 # ---------------------------------------------------------------------------
 # Order verification (reuses the compiler hash recipe, independently)
@@ -135,7 +126,6 @@ def test_tampered_module_definition_refused_at_fetch():
         run_factory(ds, order.iri, provision_backend=FakeProvisionBackend(),
                     store_backend=LocalBackend(), now=NOW, run_preflight=False)
 
-
 def test_missing_cop_attestation_refused_at_load():
     ds, order = _attested_order_ds()
     og = graph_for(ds, "order")
@@ -144,7 +134,6 @@ def test_missing_cop_attestation_refused_at_load():
     with pytest.raises(OrderVerificationError, match="attestation"):
         run_factory(ds, order.iri, provision_backend=FakeProvisionBackend(),
                     store_backend=LocalBackend(), now=NOW, run_preflight=False)
-
 
 def test_tampered_order_hash_refused_at_load():
     ds, order = _attested_order_ds()
@@ -157,7 +146,6 @@ def test_tampered_order_hash_refused_at_load():
     with pytest.raises(OrderVerificationError, match="orderHash|content hash"):
         run_factory(ds, order.iri, provision_backend=FakeProvisionBackend(),
                     store_backend=LocalBackend(), now=NOW, run_preflight=False)
-
 
 # ---------------------------------------------------------------------------
 # Preflight fail-fast
@@ -174,13 +162,12 @@ def test_preflight_unwritable_registry_exits_2(tmp_path):
     finally:
         ro.chmod(0o755)
 
-
 # ---------------------------------------------------------------------------
 # activity_to_stage ↔ STEP_NAMES ↔ plan.ttl
 # ---------------------------------------------------------------------------
 
 def test_activity_to_stage_matches_step_names():
-    from pipeline.dataset import create_dataset
+    from compliance_engine.pipeline.dataset import create_dataset
     state = PipelineState(
         ds=create_dataset(),
         provision_backend=FakeProvisionBackend(),
@@ -189,13 +176,12 @@ def test_activity_to_stage_matches_step_names():
     )
     assert set(state.activity_to_stage) == set(STEP_NAMES)
 
-
 def test_plan_ttl_steps_match_step_names():
     from rdflib import Graph
-    from pipeline.plan_execution import step_iri
+    from compliance_engine.pipeline.plan_execution import step_iri
     g = Graph()
-    g.parse(_ROOT / "pipeline" / "plan.ttl", format="turtle")
-    from ontology.prefixes import P_PLAN as PP
+    g.parse(Path(__file__).resolve().parent.parent / "src" / "compliance_engine" / "pipeline" / "plan.ttl", format="turtle")
+    from compliance_engine.ontology.prefixes import P_PLAN as PP
     declared = {str(s) for s in g.subjects(PP.isStepOfPlan, None)}
     missing = [n for n in STEP_NAMES if str(step_iri(n)) not in declared]
     assert not missing, f"plan.ttl missing steps: {missing}"

@@ -16,7 +16,7 @@ CMMC = Namespace("http://dynamicalsystems.group/ontology/cmmc#")
 CE = Namespace("http://dynamicalsystems.group/compliance-engine/")
 EARL = Namespace("http://www.w3.org/ns/earl#")
 
-_SHAPES = Path(__file__).resolve().parent.parent / "ontology" / "cmmc_shapes.ttl"
+_SHAPES = Path(__file__).resolve().parent.parent / "data" / "ontology" / "cmmc_shapes.ttl"
 
 
 def _shapes() -> Graph:

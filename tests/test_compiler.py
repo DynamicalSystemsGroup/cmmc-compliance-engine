@@ -3,29 +3,24 @@
 Per the plan's execution note, gap-detection is proven BEFORE the happy path.
 """
 
-import sys
 from pathlib import Path
 
 import pytest
 from rdflib.namespace import RDF
 
-_ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(_ROOT / "order-compiler"))
 
-import compiler  # noqa: E402
-import cop  # noqa: E402
-import rule_library as rl  # noqa: E402
-from ontology.prefixes import CE, CMMC, PROV  # noqa: E402
-from pipeline.dataset import graph_for  # noqa: E402
+from compliance_engine.order_compiler import compiler
+from compliance_engine.order_compiler import cop
+from compliance_engine.order_compiler import rule_library as rl
+from compliance_engine.ontology.prefixes import CE, CMMC, PROV
+from compliance_engine.pipeline.dataset import graph_for
 
-COP_DRAFT = _ROOT / "fixtures" / "nv012" / "cop_draft.ttl"
-OBLIGATIONS = _ROOT / "order-compiler" / "obligations.ttl"
+COP_DRAFT = Path(__file__).resolve().parent.parent / "fixtures" / "nv012" / "cop_draft.ttl"
+OBLIGATIONS = Path(__file__).resolve().parent.parent / "src" / "compliance_engine" / "order_compiler" / "obligations.ttl"
 NOW = "2026-07-02T00:00:00+00:00"
-
 
 def _attested(ds, obligations, **kw):
     return cop.attest_cop(ds, obligations, auto=True, now=NOW, **kw)
-
 
 # ---------------------------------------------------------------------------
 # REFUSE FIRST — Gate 1 gap detection before any happy path
@@ -45,7 +40,7 @@ def test_gate1_gap_refuses_order_and_names_control():
     # Gate 1 reads via the sysml:SatisfyRequirementUsage edge; drop BOTH the
     # cmmc:controlsSatisfied triple AND the satisfy-edge blank node's
     # satisfiedRequirement triple.
-    from ontology.prefixes import SYSML
+    from compliance_engine.ontology.prefixes import SYSML
     struct = graph_for(ds, "structural")
     struct.remove((CE.VPNAccess_BeyondCorp, CMMC.controlsSatisfied,
                    CMMC["AC.L2-3.1.12"]))
@@ -69,12 +64,10 @@ def test_gate1_gap_refuses_order_and_names_control():
     order_g = graph_for(ds, "order")
     assert (CE["Order-NV012"], RDF.type, CE.Order) not in order_g
 
-
 def test_unattested_cop_is_refused():
     ds, obl = compiler.load_pipeline_dataset(cop_ttl=COP_DRAFT)
     with pytest.raises(compiler.UnattestedCOP):
         compiler.compile_order(ds, obl, None, now=NOW)
-
 
 def test_backward_orphan_refuses_order():
     """Force-include an orphan module (claims nothing required) ⇒ refused."""
@@ -92,7 +85,6 @@ def test_backward_orphan_refuses_order():
         )
     # Tier1Enclave is included but claims no required control -> orphan.
     assert "Tier1Enclave" in exc.value.report.orphan_modules()
-
 
 # ---------------------------------------------------------------------------
 # HAPPY PATH — full-coverage NV012 COP emits a hash-referenced Order
@@ -116,7 +108,6 @@ def test_full_coverage_emits_hash_referenced_order():
 
     # Each included module has a content hash.
     assert all(len(h) == 64 for h in order.included_modules.values())
-
 
 def test_order_rdf_emitted_into_ce_order_graph():
     ds, obl = compiler.load_pipeline_dataset(cop_ttl=COP_DRAFT)
@@ -142,7 +133,6 @@ def test_order_rdf_emitted_into_ce_order_graph():
     assert len(mh) == 10
     assert (o, CE.derivedFromCOP, order.cop_iri) in g
 
-
 def test_order_hash_is_deterministic():
     ds1, o1 = compiler.load_pipeline_dataset(cop_ttl=COP_DRAFT)
     r1 = compiler.compile_order(ds1, o1, _attested(ds1, o1), now=NOW)
@@ -153,7 +143,6 @@ def test_order_hash_is_deterministic():
     assert r1.control_set_hash == r2.control_set_hash
     assert r1.coverage_proof_hash == r2.coverage_proof_hash
     assert r1.included_modules == r2.included_modules
-
 
 # ---------------------------------------------------------------------------
 # Deliverable / spillover semantics at the resolution layer
@@ -166,7 +155,6 @@ def test_deliverable_adds_no_required_control():
     assert len(required) == 22
     # The deliverable obligation itself resolves to nothing.
     assert rl.resolve(obl["OBL-NV012-DELIV-TOOL"]) == set()
-
 
 def test_cui_deliverable_triggers_spillover_before_gate1():
     """resolve() raises for the canonical CUI deliverable — surfaced before

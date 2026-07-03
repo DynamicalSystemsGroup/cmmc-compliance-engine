@@ -24,7 +24,7 @@ from pathlib import Path
 
 from rdflib import Graph
 
-IMPORTS_DIR = Path(__file__).resolve().parent.parent / "ontology" / "imports"
+IMPORTS_DIR = Path(__file__).resolve().parent.parent / "data" / "ontology" / "imports"
 
 
 @dataclass(frozen=True)

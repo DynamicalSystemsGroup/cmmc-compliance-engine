@@ -11,8 +11,8 @@ import hashlib
 
 import pytest
 
-from pipeline.backends.base import BackendUnavailable
-from pipeline.registry import ContentMismatch, Registry, content_hash
+from compliance_engine.pipeline.backends.base import BackendUnavailable
+from compliance_engine.pipeline.registry import ContentMismatch, Registry, content_hash
 
 
 def _reg(tmp_path) -> Registry:

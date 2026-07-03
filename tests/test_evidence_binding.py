@@ -14,18 +14,18 @@ from pathlib import Path
 
 from rdflib import Graph, Literal, URIRef
 
-from ontology.prefixes import CE, CMMC, PROV, bind_prefixes
-from evidence.binding import (
+from compliance_engine.ontology.prefixes import CE, CMMC, PROV, bind_prefixes
+from compliance_engine.pipeline.evidence.binding import (
     CollectionMetadata,
     bind_check_evidence,
     bind_config_evidence,
     bind_evidence,
 )
-from evidence.generators import GeneratorContext
-from evidence.generators.mock_config import MockConfigExportGenerator
-from evidence.generators.mock_policy import MockPolicyCheckGenerator
+from compliance_engine.pipeline.evidence.generators import GeneratorContext
+from compliance_engine.pipeline.evidence.generators.mock_config import MockConfigExportGenerator
+from compliance_engine.pipeline.evidence.generators.mock_policy import MockPolicyCheckGenerator
 
-_SHAPES = Path(__file__).resolve().parents[1] / "ontology" / "cmmc_shapes.ttl"
+_SHAPES = Path(__file__).resolve().parents[1] / "data" / "ontology" / "cmmc_shapes.ttl"
 
 
 def _new_graph() -> Graph:

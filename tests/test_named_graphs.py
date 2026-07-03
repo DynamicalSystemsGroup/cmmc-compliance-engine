@@ -21,7 +21,7 @@ import pytest
 from rdflib import Dataset, Graph, URIRef
 from rdflib.namespace import RDF
 
-from ontology.prefixes import (
+from compliance_engine.ontology.prefixes import (
     CE,
     NAMED_GRAPHS,
     G_ATTESTATIONS,
@@ -33,7 +33,7 @@ from ontology.prefixes import (
     G_PLAN_EXECUTION,
     G_STRUCTURAL,
 )
-from pipeline.dataset import (
+from compliance_engine.pipeline.dataset import (
     create_dataset,
     export_trig,
     export_union_turtle,

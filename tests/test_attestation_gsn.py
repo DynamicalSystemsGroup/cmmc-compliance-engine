@@ -13,10 +13,10 @@ from rdflib import Dataset, Literal, URIRef
 from rdflib.namespace import RDF, XSD
 from rdflib.compare import isomorphic, to_canonical_graph
 
-from ontology.prefixes import CE, CMMC, EARL, GSN, PROV, G_ATTESTATIONS, G_AUDIT
-from oracles.criteria import evaluate
-from oracles.assertion import emit_control_check_assertion
-from traceability.attestation import (
+from compliance_engine.ontology.prefixes import CE, CMMC, EARL, GSN, PROV, G_ATTESTATIONS, G_AUDIT
+from compliance_engine.oracles.criteria import evaluate
+from compliance_engine.oracles.assertion import emit_control_check_assertion
+from compliance_engine.traceability.attestation import (
     OUTCOME_FAILED,
     OUTCOME_PASSED,
     PLAN_STANDARD_PROCEDURE,

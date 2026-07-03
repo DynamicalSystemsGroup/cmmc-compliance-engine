@@ -11,15 +11,14 @@ from pathlib import Path
 
 import pytest
 
-from pipeline.provision import (
+from compliance_engine.pipeline.provision import (
     PlanResult,
     TerraformBackend,
     TerraformUnavailable,
     assert_planresult_conformant,
 )
 
-_ROOT = Path(__file__).resolve().parent.parent
-TF_MIN = _ROOT / "tests" / "fixtures" / "tf_min"
+TF_MIN = Path(__file__).resolve().parent.parent / "tests" / "fixtures" / "tf_min"
 
 pytestmark = [
     pytest.mark.terraform,
@@ -28,20 +27,16 @@ pytestmark = [
     ),
 ]
 
-
 @pytest.fixture()
 def backend() -> TerraformBackend:
     return TerraformBackend(chdir=TF_MIN)
 
-
 def test_probe_succeeds_on_fixture(backend):
     backend.probe()  # init -backend=false must succeed offline (terraform_data)
-
 
 def test_validate_passes_on_fixture(backend):
     backend.probe()
     backend.validate()
-
 
 def test_plan_show_json_yields_conformant_planresult(backend):
     backend.probe()
@@ -58,7 +53,6 @@ def test_plan_show_json_yields_conformant_planresult(backend):
     # regions parsed (US).
     assert all(r.startswith("us") for r in pr.regions().values())
 
-
 def test_planned_resources_carry_stable_join_key(backend):
     """resource_id (the BOM join key) matches a tier1.ttl module local-name."""
     backend.probe()
@@ -68,7 +62,6 @@ def test_planned_resources_carry_stable_join_key(backend):
     assert org.type == "terraform_data"
     assert "SC.L2-3.13.1" in org.controls
     assert org.region == "us-central1"
-
 
 def test_missing_binary_raises_terraform_unavailable():
     """A bogus binary name ⇒ TerraformUnavailable from probe()."""

@@ -44,7 +44,7 @@ from rdflib import Graph, URIRef
 from rdflib.namespace import RDFS
 
 ROOT = Path(__file__).resolve().parent.parent
-ONTOLOGY_DIR = ROOT / "ontology"
+ONTOLOGY_DIR = ROOT / "data" / "ontology"
 IMPORTS_DIR = ONTOLOGY_DIR / "imports"
 
 EDIT_FILE = ONTOLOGY_DIR / "cmmc-edit.ttl"
@@ -280,7 +280,7 @@ def build(
     manifest = {
         "build_time": build_time,
         "artifact": {
-            "path": f"ontology/{out_file.name}",
+            "path": f"data/ontology/{out_file.name}",
             "sha256": artifact_sha,
             "total_triples": total_triples,
             "subclass_axioms": _count_subclass_axioms(out_graph),
@@ -292,11 +292,11 @@ def build(
             "headroom": headroom,
         },
         "edit_source": {
-            "path": f"ontology/{edit_file.name}",
+            "path": f"data/ontology/{edit_file.name}",
             "sha256": _sha256(edit_file),
         },
         "shapes_source": {
-            "path": f"ontology/{Path(shapes_file).name}",
+            "path": f"data/ontology/{Path(shapes_file).name}",
             "sha256": _sha256(shapes_file),
         },
         "imports": import_info,

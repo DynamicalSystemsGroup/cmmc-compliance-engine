@@ -12,7 +12,7 @@ from __future__ import annotations
 from collections import Counter
 from pathlib import Path
 
-from traceability.sprs import (
+from compliance_engine.traceability.sprs import (
     CONDITIONAL_FLOOR,
     FINAL,
     ControlStatus,
@@ -21,7 +21,7 @@ from traceability.sprs import (
     sprs_from_catalog,
 )
 
-_CATALOG = Path(__file__).resolve().parents[1] / "ontology" / "cmmc-edit.ttl"
+_CATALOG = Path(__file__).resolve().parents[1] / "data" / "ontology" / "cmmc-edit.ttl"
 
 # The six excluded 1-pointers (nonDeferrable, poam_eligible False) per the plan.
 _EXCLUDED_ONE_POINTERS = {
@@ -161,7 +161,7 @@ class TestLoader:
 
     def test_loader_accepts_dataset(self):
         # Exercise the Dataset branch (default_union resolves control triples).
-        from pipeline.dataset import create_dataset, load_into
+        from compliance_engine.pipeline.dataset import create_dataset, load_into
 
         ds = create_dataset()
         load_into(ds, "ontology", _CATALOG)

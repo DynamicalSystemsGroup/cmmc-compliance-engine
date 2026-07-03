@@ -1,207 +1,328 @@
+<!--
+  Draft replacement for README.md, written against the restructured layout
+  (src/compliance_engine/ package, data/ inputs, infrastructure/terraform/).
+  Verify cross-links to docs/ against the final structure before publishing;
+  a few doc files (ARCHITECTURE, ROADMAP, COVERAGE) may have moved during the
+  restructure.
+-->
+
 # Compliance Engine
 
-**A build system where "provision the cloud environment" and "prove it's compliant" are the same action.**
+The Compliance Engine ingests a signed description of what a contract requires and a signed set of statements about how an organization satisfies each requirement, and it emits a System Security Plan (SSP), a Bill of Materials (BOM) of the supporting evidence, and a Supplier Performance Risk System (SPRS) score. Every automated check, every piece of evidence, and every human sign-off is content-addressed and cross-linked, and no requirement is recorded as met until a named, role-appropriate human signs a statement to that effect.
 
-> **New here? Start with the [plain-English tour](docs/v1/README.md).** It explains
-> the whole system from scratch — no compliance or cloud background needed — and
-> ends with a runnable demo. Every acronym below is defined in the
-> [glossary](docs/v1/06-glossary.md).
+The system targets CMMC Level 2 (the 110 security controls of NIST SP 800-171 Rev. 2) for U.S. defense contractors that handle Controlled Unclassified Information (CUI). It is written in Python over an RDF named-graph store, drives real Terraform at plan level, and produces byte-deterministic output from a given set of inputs.
 
-Defense contractors that handle CUI (Controlled Unclassified Information) must
-meet **CMMC Level 2** — a checklist of 110 security controls from NIST SP 800-171 —
-and submit a **System Security Plan (SSP)** describing how each control is met.
-Today that proof is assembled by hand: screenshots, spreadsheets, binders.
+## Honest limits (read first)
 
-This engine flips it: every environment is _born_ from a signed, policy-checked
-infrastructure **Order** and ships with a re-executable proof of compliance — a
-signed **BOM** (Bill of Materials) that doubles as the SSP. Compliance is not
-gathered after the fact by inspecting an existing setup; it is a **byproduct of
-provisioning**.
+This repository is a working prototype. Before adapting it, understand what it does not yet do:
 
-> **Design of record.** Where any document under [`reference/`](reference/)
-> conflicts with this repo, this repo wins. (`reference/` is background research —
-> safe to skip entirely.)
+- **Every run today is non-evidentiary.** Evidence is fixture-backed and Terraform runs in plan/preview mode with mock providers. Every output carries an `evidentiary_status` of `mock`, `mock-plan`, or `attested-reference-mock`, and every generated SSP carries a `NON-EVIDENTIARY` banner. Nothing here is a submittable government artifact yet.
+- **It does not make an organization compliant.** It records and organizes claims. If a claim is false, the engine will still pass it; a human signer carries the legal accountability, and an assessor will catch the discrepancy.
+- **References are not resolved live yet.** The model assumes each control points at an authoritative source (a cloud API, a training system, a document repository). Today those references resolve against local files and fixtures; the live API resolvers are not built.
+- **Attestations are not cryptographically signed yet.** The signing schema is in place (`sig_algo` field), but the default trust model is the Git history of the attestation file. Sigstore/cosign integration is future work.
+- **It does not talk to SPRS.** SPRS has no public API. The engine computes the score; a human still enters it at the government portal.
+- **The shipped policy documents are scaffolding.** The 16 files under `src/compliance_engine/documents/policies/` are placeholder text. An adopting organization must replace each with its own adopted, followed policy.
 
----
+See [Roadmap and what is not built](#roadmap-and-what-is-not-built) for the full list.
 
-## Two systems, one chain
+## Contents
 
-The work splits into two decoupled systems that hand a single file over the fence:
+- [Who this is for](#who-this-is-for)
+- [The problem, in plain terms](#the-problem-in-plain-terms)
+- [What makes this different from a checklist tool](#what-makes-this-different-from-a-checklist-tool)
+- [The founding principle](#the-founding-principle)
+- [Core vocabulary](#core-vocabulary)
+- [How it works, end to end](#how-it-works-end-to-end)
+- [The two coverage gates](#the-two-coverage-gates)
+- [The attested-reference model in depth](#the-attested-reference-model-in-depth)
+- [Coverage today](#coverage-today)
+- [Repository layout](#repository-layout)
+- [Installation and quickstart](#installation-and-quickstart)
+- [The outputs, explained](#the-outputs-explained)
+- [Operating the system (for compliance and operations staff)](#operating-the-system-for-compliance-and-operations-staff)
+- [Extending the system (for engineers)](#extending-the-system-for-engineers)
+- [The data model](#the-data-model)
+- [Testing](#testing)
+- [Roadmap and what is not built](#roadmap-and-what-is-not-built)
+- [Where to go next](#where-to-go-next)
 
-```
-   CONTRACT (the solicitation text, its Q&A, and standard DoD clauses)
-        │
-        ▼
-┌───────────────────────────┐   separate upstream tool
-│   ORDER COMPILER          │   order-compiler/
-│   contract → obligations  │   • AI drafts the obligations, a human attests them
-│   → controls → modules    │   • proves PLANNING COVERAGE (Gate 1)
-│   → a signed ORDER file   │   • emits a proof-carrying Order
-└───────────────────────────┘
-        │  Order file (signed, hash-referenced)
-        ▼
-┌───────────────────────────┐   the engine (this repo's runtime)
-│   THE FACTORY             │   pipeline/ + evidence/ oracles/ traceability/
-│   fetch modules by hash   │   • terraform plan → policy-as-code check
-│   → apply (BUILDS it)     │   • terraform apply → live compliance tests
-│   → live tests → BOM      │   • proves FULFILLMENT (Gate 2), human attests
-│   → sign → registry       │   • BOM = SSP, stored write-once
-└───────────────────────────┘
-        │  BOM hash
-        ▼
-   AUDITOR (a certified CMMC assessor, "C3PAO") re-executes the Order →
-   rebuilds the identical environment → re-runs checks → confirms the
-   fingerprints match. Proof by reproduction, not a folder of screenshots.
-```
+## Who this is for
 
-**The Order Compiler is a separate tool** (a chosen seam): its only output is a
-signed Order file. The Factory consumes Orders and doesn't care how they were
-made.
+This document serves two readers and explains the "how" for both.
 
-## The two coverage gates (why the mapping is _real_)
+- **Compliance and operations staff.** People responsible for the security program, the policies, the training records, and the eventual SPRS submission. The sections on the problem, the vocabulary, the end-to-end flow, and [operating the system](#operating-the-system-for-compliance-and-operations-staff) are written for this reader and assume no software background.
+- **Engineers.** People who will run, modify, or integrate the system. The sections on the repository layout, [extending the system](#extending-the-system-for-engineers), the data model, and testing are written for this reader.
 
-The engine's honesty rests on refusing to proceed unless traceability is complete
-in both directions:
+Read the shared sections (problem, vocabulary, flow, gates, coverage) first; both audiences need them.
 
-- **Gate 1 — Planning coverage** (Order Compiler, before anything is built):
-  every control the contract requires has ≥1 module _claiming_ it, every module
-  traces back to a required control, and no claim lacks a testable method.
-  Missing coverage ⇒ **the Order won't emit.**
-- **Gate 2 — Proven fulfillment** (Factory, at BOM close): a control is MET only
-  when its claim's evidence _passes_ and a human _attests_. The BOM's
-  control-mapping is audited against the Order's required-control set. A claim
-  whose live test fails ⇒ **the BOM is invalid.**
+## The problem, in plain terms
 
-Planning-coverage is a promise; proven-fulfillment is the receipt. Both are
-content-addressed and bidirectionally audited.
+A defense contractor that handles CUI must meet CMMC Level 2: a fixed list of 110 security controls drawn from NIST SP 800-171 Rev. 2. To bid on and hold such contracts, the contractor must:
+
+1. Produce a **System Security Plan (SSP)**: a document describing, control by control, how each of the 110 requirements is met.
+2. Compute and file an **SPRS score**: a single number from -203 to 110. You start at 110 and subtract the weight (1, 3, or 5 points) of every control you have not met. Some controls are non-deferrable, meaning they cannot be listed on a corrective-action plan (a POA&M) and left for later.
+3. Keep both current and be able to defend them to an assessor (a certified third party called a C3PAO, or a government reviewer for self-assessments).
+
+In practice this is assembled by hand: screenshots, spreadsheets, and binders, refreshed in a scramble before each audit and stale the day after. The evidence that a control is met is disconnected from the document that claims it, and neither is connected to the system that actually enforces the control.
+
+This engine changes the shape of that work. The SSP, the BOM, and the SPRS score are not written by hand; they are compiled from a structured, signed dataset. The dataset links each control to the thing that satisfies it, to the evidence for that thing, and to the human who signed off. Because the compilation is deterministic, an assessor can re-run it and confirm the numbers, rather than reading a binder and trusting it.
+
+## What makes this different from a checklist tool
+
+A checklist tool records, for each control, a status and a free-text note. This engine records, for each control, a resolvable pointer to the authoritative source where the truth of that control actually lives, and it applies a uniform check to that pointer.
+
+Every control is claimed by a module. Every module names an authoritative source (a cloud API, a learning-management system, a human-resources system, a document repository) and a reference into that source. When the engine evaluates a control, it does not ask a person to remember a status; it checks that the reference is registered, that it resolves, that it is within its freshness window, and that a human in the required role has signed a statement covering it. If any of those conditions fails, the engine reports a specific, machine-readable reason: the reference is missing, or stale by a stated number of days, or awaiting a signature, or signed by the wrong role. The final judgment that a control is met is always a human act; the engine enforces the bureaucracy around that judgment, not the judgment itself.
+
+This is the same mechanism for a control a machine can measure (a firewall rule) and a control only a human can attest (a completed training program). The difference between them is the kind of authoritative source and the kind of evidence, not a different code path. That uniformity is what lets the engine cover all 110 controls rather than only the machine-checkable subset.
 
 ## The founding principle
 
-> **Evidence does not verify requirements; evidence supports a human judgment
-> that requirements are satisfied.**
+> Evidence does not verify requirements; evidence supports a human judgment that requirements are satisfied.
 
-Machines provision, gather evidence, and run automated checks (`earl:automatic`).
-Only a human — the Affirming Official — attests a control MET (`earl:manual`),
-carrying the legal (False Claims Act) accountability. The same line governs the
-one judgment the Compiler makes: **AI drafts the contract's obligations; a
-Compliance Officer attests them.**
+Machines provision infrastructure, gather evidence, and run automated checks. These are recorded as automatic assertions. A control is marked met only when a human, the Affirming Official, attests it, recorded as a manual assertion, and that person carries the legal accountability (under the False Claims Act and 18 U.S.C. section 1001 for false statements to the federal government). The same line governs the single judgment made on the input side: software drafts the contract's obligations, and a Compliance Officer attests them.
 
-The traceability substrate (content-addressed hashing, human attestation,
-bidirectional audit, deterministic document compilation over an RDF named-graph
-store) is reused from a prior internal project, `ADCS-lifecycle-demo` — a
-satellite requirements-traceability engine. **You do not need that repo to
-understand or run this one**; this repo adds the front half it lacked: the
-Order → Factory → BOM provisioning loop.
+## Core vocabulary
 
-## The two authored documents
+Both audiences need these terms. They are used precisely throughout the codebase and this document.
 
-- **Control Requirements Catalog** ([`reference/control-catalog.md`](reference/control-catalog.md),
-  machine form [`ontology/cmmc-edit.ttl`](ontology/cmmc-edit.ttl)): the 110
-  controls with their weights. The "law."
-- **Traceability Matrix** ([`reference/traceability-matrix.md`](reference/traceability-matrix.md)):
-  control → resource → evidence → status. Generated per build as the BOM's
-  control-mapping and rendered inside the SSP.
+- **Control.** One of the 110 CMMC Level 2 requirements, for example `AC.L2-3.1.1` ("limit system access to authorized users"). Each has a weight (1, 3, or 5) and a POA&M-eligibility flag.
+- **Module.** A unit of the system that claims to satisfy one or more controls, for example a Terraform-provisioned VPC segment or an adopted incident-response policy. Modules live in the structural model.
+- **Authoritative source.** The system that owns the ground truth for a class of evidence: a cloud API, a training system, an HR system, a document repository. The place "where it is actually recorded."
+- **Reference.** A resolvable pointer into an authoritative source, carrying a URI, a freshness window, a last-verified timestamp, and a named custodian.
+- **Attestation.** A signed statement by a named person, in a specific role, that a set of controls is met, covering a set of references, as of a specific date.
+- **Role.** The capacity in which a person signs: Affirming Official, Security Officer, IT Administrator, or Operations. The Affirming Official may attest anything; other roles are bounded to their domain, which lets an assessor detect the wrong kind of person signing the wrong kind of evidence.
+- **Oracle.** An automated check. The engine has a small number of oracle kinds: a config-check oracle for machine-measurable controls, and an attested-reference oracle for controls backed by a reference plus a signature.
+- **Outcome.** The result of an oracle: `passed`, `failed`, `cantTell` (genuinely unknowable), or `needsAction` (a concrete, actionable gap such as a missing or stale reference). Every `needsAction` and `failed` carries a machine-readable reason.
+- **Evidence.** A recorded observation that addresses a control. Evidence supports an attestation; it never, by itself, marks a control met.
+- **Order.** A signed, hash-referenced file that states which controls a specific contract requires and which modules will satisfy them. It is the input to the runtime.
+- **COP (Contract Obligation Profile).** The upstream description of a contract's obligations, from which the required-control set is derived and an Order is compiled.
+- **BOM (Bill of Materials).** The generated, signed record mapping each required control to its module, its evidence hashes, and its attestation. The BOM's control-mapping is what the SSP renders.
+- **SSP, SPRS.** The government-facing document and the government-facing score, both compiled from the dataset.
+- **Evidentiary status.** A tag on every artifact recording how strong the evidence is: `mock`, `mock-plan`, and `attested-reference-mock` are all non-evidentiary (demonstration only); live statuses are future work.
 
-## Repo map
+## How it works, end to end
 
-| Path                                 | What it is                                                                                                                                              |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`cli.py`](cli.py)                   | **The operator entry point** — `demo` drives the whole chain; each stage is a subcommand                                                                |
-| [`order-compiler/`](order-compiler/) | Separate upstream tool: contract → obligations → controls → modules → signed Order (Gate 1)                                                             |
-| [`pipeline/`](pipeline/)             | The Factory: executes an Order — fetch by hash → plan → policy check → evidence → checks; also the write-once registry (local today; GCS/Azure planned) |
-| [`evidence/`](evidence/)             | SHA-256 hashing + evidence binding + the evidence generators (fixture-backed today)                                                                     |
-| [`oracles/`](oracles/)               | The automated pass/fail/can't-tell checks — one criterion per machine-checkable control                                                                 |
-| [`traceability/`](traceability/)     | Human attestation (Gate 2), bidirectional audit, SPRS score + POA&M legality                                                                            |
-| [`structural/`](structural/)         | Data: which Terraform module claims which control (`tier1.ttl`)                                                                                         |
-| [`ontology/`](ontology/)             | The control catalog as RDF vocabulary + SHACL validation shapes                                                                                         |
-| [`documents/`](documents/)           | Deterministic **SSP compiler** (renders the BOM's facts as the government document)                                                                     |
-| [`terraform/`](terraform/)           | Real Tier-1 infrastructure-as-code modules (driven at plan level, mock providers)                                                                       |
-| [`fixtures/`](fixtures/nv012/)       | The NV012 demo's mock evidence, in three scenario variants                                                                                              |
-| [`docs/`](docs/)                     | Documentation — see routing below                                                                                                                       |
-| [`reference/`](reference/)           | Background research (guides, standards, requirements) — **safe to skip entirely**                                                                       |
+The system has two decoupled halves that exchange a single file. The upstream half (the **Order Compiler**) turns a contract into a signed Order. The downstream half (the **runtime**, historically called the Factory in the code) consumes an Order, provisions and checks the environment, and produces the signed outputs. An assessor can then re-execute the Order and confirm the outputs match.
 
-## Documentation — where to start, by audience
+```mermaid
+flowchart TD
+    A["Contract<br/>(solicitation text, Q and A, DoD clauses)"] --> B
 
-| You are…                      | Read                                                                                     |
-| ----------------------------- | ---------------------------------------------------------------------------------------- |
-| **New to the project**        | [`docs/v1/`](docs/v1/README.md) — the plain-English tour (start at 00, ~45 min)          |
-| **An operator** (just run it) | ["Run the NV012 demo"](#run-the-nv012-demo) below                                        |
-| **A developer**               | [`ARCHITECTURE.md`](ARCHITECTURE.md) then [`docs/AS-BUILT.md`](docs/AS-BUILT.md)         |
-| **An assessor / auditor**     | [`docs/AUDITOR-GUIDE.md`](docs/AUDITOR-GUIDE.md) — how to re-verify a delivered BOM      |
-| **Checking what's proven**    | [`docs/ACCEPTANCE.md`](docs/ACCEPTANCE.md) — the acceptance sign-off and scenario matrix |
+    subgraph OC["Order Compiler (upstream)"]
+        B["Obligations<br/>(software drafts, Compliance Officer attests)"] --> C["Required control set<br/>(rule library)"]
+        C --> D["Gate 1: planning coverage<br/>every required control has a claiming module;<br/>every module traces to a required control;<br/>no claim lacks a testable method"]
+    end
 
-## Status
+    D -->|"pass: emit signed Order"| E["Order file<br/>(signed, hash-referenced)"]
+    D -->|"fail: refuse, name the gap"| X["No Order emitted"]
 
-**Runnable, end to end, on mock data.** The full chain is implemented and tested
-(293 tests): ontology build, Order compilation + Gate 1, real Terraform
-plan-level provisioning (mock providers), evidence/oracles, Gate 2 attestation,
-audit + SPRS, BOM + registry, and the deterministic SSP. Live `terraform apply`,
-real evidence collectors, cryptographic signing (Sigstore), and cloud registry
-backends (GCS/Azure) are Phase II — see [`ROADMAP.md`](ROADMAP.md).
+    subgraph RT["Runtime (downstream)"]
+        E --> F["Fetch modules by hash"]
+        F --> G["terraform plan<br/>plus policy-as-code check<br/>(residency hard gate)"]
+        G --> H["Collect evidence<br/>and run oracles"]
+        H --> I["Gate 2: proven fulfillment<br/>evidence passes AND a human attests,<br/>in the required role"]
+    end
 
-## Run the NV012 demo
+    I --> J["BOM<br/>(control map plus evidence hashes plus attestations)"]
+    J --> K["SSP<br/>(the government document)"]
+    J --> L["SPRS score<br/>plus POA&M legality"]
+    J --> M["Write-once registry"]
 
-NV012 is an example DoD SBIR contract (SBIR = the DoD's small-business R&D
-program) that the demo ships with as its input. One command drives the whole
-chain — compile the Order → run the Factory (real `terraform plan`, mock
-providers) → attest → audit + SPRS → BOM → SSP.
+    J --> N["Auditor / C3PAO<br/>re-executes the Order,<br/>recomputes hashes,<br/>confirms they match"]
+```
 
-**Prereqs.** `uv sync`. No cloud account or credentials are needed: the demo
-defaults to a mock provisioner (`--backend fake`) and fixture-backed evidence.
-`terraform` (≥ 1.4) is optional and only used with `--backend terraform`.
+In prose: a contract's obligations are drafted and attested, resolved to a required-control set, and checked at Gate 1. If planning coverage is complete, a signed Order is emitted. The runtime fetches the named modules by hash, runs `terraform plan` and a policy-as-code check (including a hard data-residency gate that halts the run before anything is applied), collects evidence, and runs the oracles. At Gate 2, each required control is marked met only where its evidence passes and a role-appropriate human attests. The results compile into the BOM, the SSP, and the SPRS score, all written to a write-once registry. An assessor re-executes the Order and confirms the fingerprints match, rather than inspecting a static folder.
 
-**The three scenarios** (each is one copy-pasteable command):
+## The two coverage gates
+
+The engine's integrity rests on refusing to proceed unless traceability is complete in both directions.
+
+- **Gate 1, planning coverage (Order Compiler, before anything is built).** Every control the contract requires has at least one module claiming it; every included module traces back to a required control; and no claim lacks a testable verification method. If coverage is incomplete, the Order is not emitted, and the missing control is named. This is a promise that the plan is complete.
+- **Gate 2, proven fulfillment (runtime, at BOM close).** A control is met only when its claim's evidence passes its oracle and a human attests it in the required role. The BOM's control-mapping is audited against the Order's required-control set. A claim whose check fails, or that no one attests, does not count as met. This is the receipt that the promise was kept.
+
+Both gates are content-addressed and audited in both directions (forward: every required control reaches evidence and an attestation; backward: every attestation's evidence addresses the control it attests).
+
+## The attested-reference model in depth
+
+This is the mechanism that lets a single, uniform check cover both machine-measurable and human-only controls.
+
+Each module carries three facts: an authoritative source, a reference into that source, and the role required to attest it. When the attested-reference oracle evaluates a control, it walks a fixed decision sequence and stops at the first failure, returning a specific reason:
+
+1. **Reference registered?** If no reference exists for a claiming module, the outcome is `needsAction` with reason `reference-missing`.
+2. **Reference resolvable?** If the reference has no URI, the outcome is `failed` with reason `reference-unresolvable`.
+3. **Ever verified?** If the reference has never been checked, `needsAction` with reason `reference-never-verified`.
+4. **Within its freshness window?** If the reference is older than its policy allows, `failed` with reason `stale:<age>d>` `<window>d`. Freshness policies are named (annual, semi-annual, quarterly, monthly, and event-based, which never expires on time alone), so the number lives in one place rather than being scattered.
+5. **Attested?** If the reference is fresh but no signature covers this control, `needsAction` with reason `awaiting-attestation`.
+6. **Signed by the right role?** If the signer's role is neither the Affirming Official nor the module's required role, `failed` with reason `signer-role-mismatch:<got>!=<required>`.
+7. **Signature not older than the evidence?** If the attestation predates the reference's last verification, `failed` with reason `attestation-predates-reference` (signing evidence one has not seen the current form of is a smell).
+
+Only when all seven conditions hold is the outcome `passed`. A signer's own declined outcome (a `failed` or `needsAction` attestation) is propagated rather than overridden.
+
+The `needsAction` outcome is deliberately distinct from `cantTell`. A checklist tool collapses "we cannot know" and "we have not done the paperwork yet" into one ambiguous status. Here, `cantTell` means genuinely unknowable, and `needsAction` means there is a concrete, named next step. That distinction turns the audit output into a work list.
+
+## Coverage today
+
+All 110 CMMC Level 2 controls now have a claiming module. Coverage is distributed across three kinds of verification:
+
+| Verification kind             | Modules | Controls | How it is checked                                                                   |
+| ----------------------------- | ------- | -------- | ----------------------------------------------------------------------------------- |
+| Machine (config-check oracle) | 22      | 65       | An oracle compares a measured value from a cloud/config export against a criterion. |
+| Attested reference            | 16      | 43       | The attested-reference oracle checks a reference plus a role-appropriate signature. |
+| Cloud-provider inheritance    | 1       | 2        | Physical-protection controls inherited from the IL4 cloud provider, human-attested. |
+| **Total**                     | **39**  | **110**  |                                                                                     |
+
+The machine and attested-reference modules are organized as two tracks added on top of a baseline:
+
+- **Baseline (Tier 1).** 10 modules, 22 controls: Workspace 2-Step Verification, CMEK key management, IAM least privilege, DLP, US-region org policy, audit-log export, service allowlisting, Terraform baseline, monitoring, and the inherited physical-protection pair.
+- **Track A (machine).** 13 modules, 45 controls: VPC segmentation, endpoint detection, mobile-device management, Security Command Center, Workspace admin policy, BeyondCorp remote access, GitHub change management, operations MFA, Cloud Logging, Binary Authorization allowlisting, session control, VPC Service Controls, and IAM privileged-use.
+- **Track B (attested reference).** 16 modules, 43 controls: the policy-and-records controls (training, incident response, risk assessment, personnel security, configuration management, maintenance, media protection, audit procedure, security engineering, remote-access authorization, physical access, collaborative computing, separation of duties, continuous monitoring, and login banner).
+
+The shipped demonstration contract, NV012, exercises a 22-control slice of this coverage; the structural model claims all 110.
+
+## Repository layout
+
+The runtime code is a Python package under `src/`; the non-code inputs (the control catalog, the structural model, the attestations) are data under `data/`.
+
+| Path                                    | What it is                                                                                                                                                                                                 |
+| --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/compliance_engine/cli.py`          | The operator entry point. Installed as the `ce` command; `demo` drives the whole chain and each stage is a subcommand.                                                                                     |
+| `src/compliance_engine/order_compiler/` | The upstream tool: contract obligations to a required-control set to a signed Order, with Gate 1. Contains `gate1.py`, `compiler.py`, `cop.py`, `rule_library.py`.                                         |
+| `src/compliance_engine/pipeline/`       | The runtime: executes an Order (fetch by hash, plan, policy check, apply, evidence). Includes the dataset loader, run state, provisioning backends, and the write-once registry.                           |
+| `src/compliance_engine/evidence/`       | SHA-256 hashing, evidence binding, and the evidence generators (fixture-backed today).                                                                                                                     |
+| `src/compliance_engine/oracles/`        | The automated checks: `criteria.py` (config-check criteria), `freshness.py` (freshness policies), `attested_reference.py` (the reference-plus-signature oracle), `assertion.py` (EARL assertion emission). |
+| `src/compliance_engine/traceability/`   | Human attestation (Gate 2), the attestation store, the bidirectional audit, and the SPRS score plus POA&M-legality logic.                                                                                  |
+| `src/compliance_engine/documents/`      | The deterministic SSP compiler, and the scaffold policy documents under `documents/policies/`.                                                                                                             |
+| `src/compliance_engine/ontology/`       | RDF namespace and vocabulary helpers used across the code.                                                                                                                                                 |
+| `data/ontology/`                        | The control catalog and vocabularies as RDF: `cmmc-edit.ttl` (the 110 controls), `ce-attestation-refs.ttl` (the attestation and reference vocabulary), `cmmc_shapes.ttl` (SHACL validation shapes).        |
+| `data/structural/`                      | The structural model: `tier1.ttl` (which module claims which control) and `references.ttl` (authoritative sources and references for the attested-reference modules).                                      |
+| `data/attestations/`                    | Signed attestation records, one JSON object per line (`tier1.jsonl`).                                                                                                                                      |
+| `infrastructure/terraform/tier1/`       | The real Tier-1 infrastructure-as-code, driven at plan level with mock providers.                                                                                                                          |
+| `fixtures/nv012/`                       | The NV012 demonstration inputs: the draft COP and three evidence scenarios (`all-covered`, `gap`, `contradiction`).                                                                                        |
+| `artifacts/registry/`                   | The write-once, content-addressed output store.                                                                                                                                                            |
+| `docs/`                                 | Documentation: the plain-English tour under `docs/v1/`, the operating guide, the auditor guide, and the acceptance record.                                                                                 |
+| `tests/`                                | The automated test suite.                                                                                                                                                                                  |
+
+## Installation and quickstart
+
+**Prerequisites.** [`uv`](https://docs.astral.sh/uv/) for dependency management. No cloud account or credentials are required: the demo defaults to a mock provisioner and fixture-backed evidence. Terraform (version 1.4 or later) is optional and used only when running against the real plan path.
 
 ```bash
-# 1. Happy path — full chain, writes the BOM + audit + SSP + registry, exit 0
-uv run python cli.py demo --evidence-set all-covered --auto
+# install dependencies
+uv sync
+```
 
-# 2. Coverage gap — Gate 1 REFUSES before anything is built, exit 2
-uv run python cli.py demo --evidence-set gap --auto
+The command-line tool is installed as `ce` (and, equivalently, `compliance-engine`). You can also invoke it as `python -m compliance_engine`.
 
-# 3. Contradiction — completes, but the audit flags the human-over-machine conflict, exit 0
-uv run python cli.py demo --evidence-set contradiction --auto
+The demonstration ships three scenarios, each a single command. NV012 is an example DoD SBIR contract used as the demo input.
+
+```bash
+# 1. Happy path: full chain, writes BOM + audit + SSP + registry, exit 0
+uv run ce demo --evidence-set all-covered --auto
+
+# 2. Coverage gap: Gate 1 refuses before anything is built, exit 2
+uv run ce demo --evidence-set gap --auto
+
+# 3. Contradiction: completes, but the audit flags a human-over-machine conflict, exit 0
+uv run ce demo --evidence-set contradiction --auto
 ```
 
 What to expect:
 
-- **`all-covered`** → compiles the Order (22 required controls), runs all six
-  stages, attests every required control MET, and prints
-  `SPRS: score=110 status=Final valid_submission=True`, then
-  `Proven vs attested: 4 MET-by-machine / 18 MET-by-human-only` and
-  `Contradictions (attested MET over failed machine check): 0`. SPRS is scored
-  over the **Order's required-control set** (the controls this environment is
-  responsible for), all MET → full score. Exit **0**.
-- **`gap`** → Gate 1 refuses and names the missing 5-point control
-  (`AC.L2-3.1.12` has no claiming module): `Gate 1 REFUSED — Order NOT emitted.`
-  The Factory never runs and **no artifacts are written**. Exit **2**.
-- **`contradiction`** → the same happy chain, but a human attests MET over a
-  failing machine oracle (MFA off), so the audit reports
-  `Contradictions (attested MET over failed machine check): 1`. The BOM is
-  still written — the conflict is surfaced, not swallowed. Exit **0**.
+- **`all-covered`** compiles the Order (22 required controls), runs every stage, attests each required control met, and prints `SPRS: score=110 status=Final valid_submission=True`, followed by the proven-versus-attested split and a contradiction count of 0. The SPRS score is computed over the Order's required-control set. Exit 0.
+- **`gap`** demonstrates Gate 1 refusal. Because all 110 catalog controls now have a claiming module, the demo injects a syntactically valid but non-catalog control id (`XX.L2-3.99.99`) to trigger the refusal path. The Order is not emitted and no artifacts are written. Exit 2.
+- **`contradiction`** runs the full chain, but a human attests a control met over a failing machine oracle, so the audit reports one contradiction. The BOM is still written; the conflict is surfaced, not swallowed. Exit 0.
 
-Artifacts written under `--output-dir` (default `output/`):
+Exit codes: **0** success; **1** runtime safety-valve halt (a pre-apply policy check failed, for example a non-US region, and nothing was applied); **2** Gate 1 refusal or bad arguments.
 
-| Artifact                  | What it is                                                                                  |
-| ------------------------- | ------------------------------------------------------------------------------------------- |
-| `bom.json`                | the BOM — control-mapping + attestations + artifact hashes (canonical JSON)                 |
-| `ssp.md`                  | the SSP — the human-readable government document with the 110-row traceability matrix       |
-| `audit.md` / `audit.json` | bidirectional audit + SPRS score / POA&M-legality + the contradiction list                  |
-| `registry/`               | write-once, content-addressed object store + two-level index (`contract → BOM → artifacts`) |
-| `engine.trig`             | the full `<ce:*>` named-graph dataset for the run                                           |
-| `run_state.json`          | the finalized `PipelineState` summary (per-stage results)                                   |
+Individual stages are available as subcommands (`compile-order`, `run-factory`, `attest`, `audit`, `bom`, `ssp`) operating against `--output-dir`. Run `uv run ce --help` for the full list.
 
-Exit codes: **0** success · **1** Factory safety-valve halt (a pre-apply policy
-check failed, e.g. a non-US region — nothing was applied) · **2** Gate-1 refusal
-or bad arguments.
+Every demonstration run is non-evidentiary: evidence is fixture-backed and provisioning is mock, so every artifact carries a mock evidentiary status and the SSP carries a `NON-EVIDENTIARY` banner.
 
-> **This run is NON-EVIDENTIARY.** Evidence is fixture-backed and the environment
-> is provisioned by a mock provider, so every artifact carries
-> `evidentiary_status: "mock"` and the emitted BOM is **not a submittable SSP** —
-> it demonstrates the mechanism, not a real assessment.
+## The outputs, explained
 
-Other subcommands run the stages individually against `--output-dir`:
-`compile-order`, `run-factory`, `attest`, `audit`, `bom`, `ssp`. Run
-`uv run python cli.py --help` for the full list.
+A completed run writes these artifacts to the directory passed as `--output-dir`:
 
-_Design material, not legal advice. Verify all CMMC/ITAR interpretations with the contracting officer, C3PAO, and counsel._
+| Artifact                    | What it is                                                                                                 |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `bom.json`                  | The Bill of Materials: the control-mapping, attestations, and artifact hashes, in canonical JSON.          |
+| `ssp.md`                    | The System Security Plan: the human-readable government document with the per-control traceability matrix. |
+| `audit.md` and `audit.json` | The bidirectional audit plus the SPRS score, POA&M-legality result, and the contradiction list.            |
+| `registry/`                 | The write-once, content-addressed object store with a two-level index (contract to BOM to artifacts).      |
+| `engine.trig`               | The full RDF named-graph dataset for the run.                                                              |
+| `run_state.json`            | The finalized run-state summary, per stage.                                                                |
+
+The SSP is compiled from the same dataset the BOM records, so the document and the machine-readable record cannot disagree. The audit's SPRS score is computed over the Order's required-control set, not the full catalog, because the score reflects the controls the environment is actually responsible for under that contract.
+
+## Operating the system (for compliance and operations staff)
+
+You do not need to write code to operate the engine. Day-to-day operation falls into four rhythms, each owned by a role. The full procedures live in the operating guide (`docs/SOP.md`); the summary:
+
+- **On every change (automatic).** When infrastructure or configuration changes, re-run the demo/pipeline. The residency gate and Gate 1 halt the run if a change introduces a non-US region, drops a required control's coverage, or removes a claiming module. This catches drift when it happens.
+- **On a policy change (event-driven).** When a policy, training program, or record set changes, update the corresponding document, update the reference's last-verified date in `data/structural/references.ttl`, append a new signed attestation line to `data/attestations/tier1.jsonl`, and commit. History is append-only; you never edit past attestations.
+- **Quarterly (proactive).** Run the pipeline with the current date. Any reference past its freshness window becomes `needsAction` with a stated number of days overdue, producing a punch list of what to refresh.
+- **At submission (periodic).** Run the pipeline, tag the result, copy the SSP and score, and file the score at the government SPRS portal. The engine produces the artifacts; a human performs the filing.
+
+The four roles map to the four attestation capacities: the Affirming Official signs the submission and may attest anything; the Security Officer owns the security-program policies; the IT Administrator owns the technical configuration; Operations owns personnel, maintenance, and records evidence.
+
+## Extending the system (for engineers)
+
+Adding coverage for a new control, or a new module, follows one recipe. A machine (config-check) module and an attested-reference (policy) module differ only in which files carry which facts.
+
+For a **machine module**:
+
+1. Add the module and its control claims to `data/structural/tier1.ttl`, with a `cmmc:verificationMethod` pointing at a config-check oracle.
+2. Add a resource (real or placeholder) to `infrastructure/terraform/tier1/` and register it in the module map so the plan JSON carries the control mapping.
+3. Add one criterion per control to `src/compliance_engine/oracles/criteria.py`, mapping an evidence summary key to a pass/fail comparison.
+4. Add a fixture evidence export under `fixtures/nv012/` providing that summary key.
+5. Add a test.
+
+For an **attested-reference (policy) module**:
+
+1. Add the module and its control claims to `data/structural/tier1.ttl`, with `ce:authoritativeSource`, `ce:reference`, `ce:attestationRole`, and `cmmc:verificationMethod ce:oracle-attested-reference`.
+2. Add the authoritative source and reference (URI, freshness policy, last-verified date, custodian) to `data/structural/references.ttl`.
+3. Add or update the policy document under `src/compliance_engine/documents/policies/`.
+4. Add a signed attestation line to `data/attestations/tier1.jsonl`.
+5. Add a test.
+
+The structural test suite locks the module-to-control mapping, so a drifted claim fails a test rather than silently changing coverage.
+
+## The data model
+
+The engine stores everything in an RDF dataset partitioned into named graphs, one per lifecycle layer (ontology, plan, structural, order, evidence, attestations, plan-execution, audit). This keeps distinct concerns in distinct graphs and lets the engine reason across them without conflating them (for example, keeping a contract's Order separate from the attestations that fulfill it).
+
+The vocabulary is assembled from established standards rather than invented: PROV-O for provenance, EARL for the assertion and outcome pattern, SysML v2 for the structural model and requirements, SHACL for well-formedness invariants, and Dublin Core for metadata. Two local namespaces carry the domain-specific terms: one for the control catalog (the "law" layer) and one for the engine's instance data (orders, evidence, BOMs, attestations, references, and the authoritative-source and role vocabulary). The SHACL shapes enforce structural invariants such as "an attestation marked met must carry both an adequacy and a sufficiency statement" and "only a 1-point control may sit on a POA&M."
+
+## Testing
+
+The engine ships with a full automated test suite (340-plus tests) covering the ontology, Order compilation and Gate 1, the residency hard gate, evidence and oracles, the attested-reference machinery (freshness windows, the seven-branch oracle, the attestation store, role gating), Gate 2 attestation, the audit and SPRS scoring, the BOM and registry, and the deterministic SSP.
+
+```bash
+uv run pytest -q
+```
+
+The Terraform-dependent tests are marked and skip automatically when the `terraform` binary is absent.
+
+## Roadmap and what is not built
+
+The design supports a live path; the following are the concrete steps from the current mock/plan state to real evidence. They are not yet built.
+
+- **Live provisioning.** Real `terraform apply` against an IL4 GCP and Google Workspace environment, with real credentials (Workload Identity Federation preferred), a remote state backend, and state locking.
+- **Live evidence resolvers.** A resolver per authoritative source that fetches the real artifact (a training report, a firewall config, a branch-protection setting), updates the reference's last-verified date, and commits, replacing the fixture path.
+- **Cryptographic signing.** Wiring the `sig_algo` field to Sigstore cosign and Rekor so attestations are independently verifiable, rather than trusted by Git history.
+- **Cloud registry backends.** A GCS (and later Azure) write-once registry, replacing the local store, so Tier-1 state is never held in a lower environment.
+- **Approval gate.** A GitHub pull-request plus OIDC approval boundary before any live apply.
+- **Continuous compliance.** Drift detection that rebuilds and compares live state against recorded state, and re-provisioning on policy change.
+
+## Where to go next
+
+| You are                           | Read                                                                                                                   |
+| --------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| New to the project, non-technical | `docs/v1/` — the plain-English tour, in order                                                                          |
+| Operating the system              | `docs/SOP.md` — the operating guide                                                                                    |
+| An assessor or auditor            | `docs/AUDITOR-GUIDE.md` — how to re-verify a delivered BOM                                                             |
+| Verifying what is proven          | `docs/ACCEPTANCE.md` — the acceptance record and scenario matrix                                                       |
+| Extending or integrating          | This document's [extending](#extending-the-system-for-engineers) section, then the code under `src/compliance_engine/` |
+
+---
+
+Design material, not legal advice. Verify all CMMC and ITAR interpretations with the contracting officer, the C3PAO, and counsel.

@@ -19,7 +19,7 @@ import shutil
 
 import pytest
 
-from pipeline.provision import (
+from compliance_engine.pipeline.provision import (
     ApplyResult,
     PlanResult,
     PlannedResource,
@@ -61,9 +61,9 @@ class _NoRegionBackend:
 
 def test_non_us_region_halt_reason_names_residency():
     from tests.test_pipeline import NOW, _attested_order_ds
-    from pipeline.backends.local import LocalBackend
-    from pipeline.provision import FakeProvisionBackend
-    from pipeline.runner import run_factory
+    from compliance_engine.pipeline.backends.local import LocalBackend
+    from compliance_engine.pipeline.provision import FakeProvisionBackend
+    from compliance_engine.pipeline.runner import run_factory
 
     ds, order = _attested_order_ds()
     state = run_factory(
@@ -87,8 +87,8 @@ def test_non_us_region_halt_reason_names_residency():
 
 def test_zero_region_signals_halt_the_run():
     from tests.test_pipeline import NOW, _attested_order_ds
-    from pipeline.backends.local import LocalBackend
-    from pipeline.runner import run_factory
+    from compliance_engine.pipeline.backends.local import LocalBackend
+    from compliance_engine.pipeline.runner import run_factory
 
     ds, order = _attested_order_ds()
     state = run_factory(
@@ -113,7 +113,7 @@ def test_zero_region_signals_halt_the_run():
 @pytest.mark.skipif(shutil.which("terraform") is None,
                     reason="terraform binary not installed")
 def test_real_terraform_plan_flags_non_us_region():
-    from evidence.generators.terraform_plan import TerraformPlanGenerator, _is_us_region
+    from compliance_engine.pipeline.evidence.generators.terraform_plan import TerraformPlanGenerator, _is_us_region
 
     gen = TerraformPlanGenerator(tf_vars={"primary_region": "europe-west1"})
     plan = gen.plan_json()
