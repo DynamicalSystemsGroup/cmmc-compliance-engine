@@ -527,6 +527,40 @@ def verify_cmd(output_dir: _OUT = "output") -> None:
     typer.echo("Dataset intact. No tampering detected. SHACL shapes conform.")
 
 
+@app.command("package")
+def package_cmd(output_dir: _OUT = "output") -> None:
+    """Assemble + sign the audit package: one manifest bundling the BOM, SSP, audit,
+    SPRS, full-chain provenance, and the per-control control->signed-policy chain."""
+    from compliance_engine.traceability.bom import build_bom
+    from compliance_engine.traceability.package import build_audit_package
+
+    out = _ensure_out(output_dir)
+    ds = _load_ds(out)
+    state = _load_run_state(ds, out)
+    report = _do_audit(ds, out)
+    bom_hash = build_bom(state, ds, contract_id=CONTRACT_ID).bom_hash
+    pkg = build_audit_package(
+        ds, out, CONTRACT_ID, audit_report=report, bom_hash=bom_hash,
+    )
+    typer.echo(
+        f"Audit package: {pkg.package_dir / 'manifest.json'} signed "
+        f"({pkg.sig_algo}, key={pkg.key_id[:12]})."
+    )
+
+
+@app.command("verify-package")
+def verify_package_cmd(output_dir: _OUT = "output") -> None:
+    """Re-verify a signed audit package offline: manifest signature, artifact hashes,
+    and the control->signed-policy chain."""
+    from compliance_engine.traceability.package import verify_audit_package
+
+    out = _ensure_out(output_dir)
+    result = verify_audit_package(out / "package")
+    typer.echo(result.summary())
+    if not result.ok:
+        raise typer.Exit(code=1)
+
+
 @app.command("ssp")
 def ssp_cmd(output_dir: _OUT = "output") -> None:
     """Render the SSP from the persisted dataset (skipped if the SSP compiler is unavailable)."""
@@ -634,6 +668,17 @@ def demo(
     _ssp_hook(out, ds=ds, audit_report=report, bom=bom)
 
     _dump_run_state(state, out)
+
+    # 7. Audit package — assemble + sign the full deliverable a C3PAO re-verifies.
+    from compliance_engine.traceability.package import build_audit_package
+    pkg = build_audit_package(
+        ds, out, order.contract, audit_report=report, bom_hash=bom.bom_hash,
+    )
+    typer.echo(
+        f"[package] {pkg.package_dir / 'manifest.json'} signed "
+        f"({pkg.sig_algo}, key={pkg.key_id[:12]}) — {len(pkg.manifest['controls'])} "
+        f"controls, provenance ok={pkg.manifest['provenance']['sop_adherence_ok']}"
+    )
 
     # Durable append-only tier of record (Flexo), when selected. Local files are
     # always written above, so the local registry remains the cache/fallback tier.
