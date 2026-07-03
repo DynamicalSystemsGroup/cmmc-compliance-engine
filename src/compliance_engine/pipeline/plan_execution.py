@@ -27,8 +27,8 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 from typing import Iterator
 
-from rdflib import Dataset, Literal, URIRef
-from rdflib.namespace import RDF, XSD
+from rdflib import Dataset, Graph, Literal, URIRef
+from rdflib.namespace import RDF, RDFS, XSD
 
 from compliance_engine.ontology.prefixes import CE, P_PLAN, PROV
 from compliance_engine.pipeline.dataset import graph_for
@@ -40,7 +40,7 @@ from compliance_engine.pipeline.dataset import graph_for
 PIPELINE_AGENT = CE["agent/pipeline-runner"]
 
 
-# The Factory stages, as short-names. Each maps to a p-plan:Step IRI in
+# The Factory (Runtime) stages, as short-names. Each maps to a p-plan:Step IRI in
 # pipeline/plan.ttl (ce:step-<name>). Keep this in sync with plan.ttl.
 STEP_NAMES = {
     "LoadOrder",
@@ -54,6 +54,20 @@ STEP_NAMES = {
     "Audit",
     "SignAndStore",
 }
+
+# The upstream Order-Compiler stages (ce:SOP-ORDER-COMPILE in plan.ttl). These run
+# before the Runtime; their provenance is synthesised in traceability/provenance.py
+# from the artifacts already in hand at Order-compile time.
+UPSTREAM_STEP_NAMES = {
+    "ExtractObligations",
+    "ResolveControls",
+    "AttestCOP",
+    "Gate1",
+    "EmitOrder",
+}
+
+# All plan steps, either plan. Used by the deviation check.
+ALL_STEP_NAMES = STEP_NAMES | UPSTREAM_STEP_NAMES
 
 
 def step_iri(step_name: str) -> URIRef:
@@ -115,3 +129,49 @@ def emit_stage_activity(ds: Dataset, step_name: str) -> URIRef:
     what the predecessor check validates.
     """
     return start_step(ds, step_name)
+
+
+# ---------------------------------------------------------------------------
+# P-Plan Variables and Entities — the full-chain provenance primitives.
+#
+# A Variable is a *planned* input/output declared in plan.ttl (ce:var-<name>).
+# An Entity is the *real* artifact produced by a run; it correspondsToVariable a
+# Variable and is wired to the Activity that produced/consumed it via
+# prov:wasGeneratedBy / prov:used. Entity IRIs are deterministic (derived from the
+# artifact identity, not a timestamp) so the provenance graph is reproducible.
+# ---------------------------------------------------------------------------
+
+def var_iri(var_name: str) -> URIRef:
+    """The plan Variable IRI for `var_name` (must match ce:var-<name> in plan.ttl)."""
+    return URIRef(f"{CE}var-{var_name}")
+
+
+def entity_iri(kind: str, ident: str) -> URIRef:
+    """A deterministic Entity IRI, e.g. entity/order/NV012."""
+    return URIRef(f"{CE}entity/{kind}/{ident}")
+
+
+def declare_entity(
+    g: Graph, entity: URIRef, var_name: str, *, label: str | None = None
+) -> URIRef:
+    """Type `entity` as a p-plan/prov Entity realizing the plan Variable `var_name`.
+
+    Idempotent — safe to call for an artifact already declared elsewhere (e.g. an
+    evidence node or the Order, which carry their own types in another graph).
+    """
+    g.add((entity, RDF.type, P_PLAN.Entity))
+    g.add((entity, RDF.type, PROV.Entity))
+    g.add((entity, P_PLAN.correspondsToVariable, var_iri(var_name)))
+    if label:
+        g.add((entity, RDFS.label, Literal(label)))
+    return entity
+
+
+def mark_output(g: Graph, entity: URIRef, activity: URIRef) -> None:
+    """Record that `activity` generated `entity` (prov:wasGeneratedBy)."""
+    g.add((entity, PROV.wasGeneratedBy, activity))
+
+
+def mark_input(g: Graph, activity: URIRef, entity: URIRef) -> None:
+    """Record that `activity` consumed `entity` (prov:used)."""
+    g.add((activity, PROV.used, entity))

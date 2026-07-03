@@ -232,6 +232,11 @@ def compile_order(
         gate1=report,
     )
     _emit_order(ds, order, cop_attestation, now=now)
+    # Full-chain provenance: record the upstream contract -> Order lineage as
+    # p-plan Activities + Entities (traceability/provenance.py). Additive to the
+    # <ce:plan_execution> graph; deterministic.
+    from compliance_engine.traceability.provenance import emit_order_compile_provenance
+    emit_order_compile_provenance(ds, obligations, order, cop_attestation, now=now)
     return order
 
 

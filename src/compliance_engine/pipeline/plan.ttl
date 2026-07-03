@@ -1,50 +1,132 @@
-# Factory SOP / Order process model (p-plan).
-# Steps = the Factory stages in pipeline/DESIGN.md and STEP_NAMES in
-# pipeline/plan_execution.py — the two MUST stay in lockstep (ce:step-<name>).
-# The Order is the input; the signed compliance BOM is the output.
+# Full-chain SOP / process model (p-plan).
+#
+# Two linked plans model the whole lineage:
+#   - ce:SOP-ORDER-COMPILE          — contract -> signed Order (the Order Compiler)
+#   - ce:SOP-CMMC-TIER1-PROVISION   — signed Order -> signed compliance BOM (the Runtime)
+# They are chained by the shared variable ce:var-Order (output of EmitOrder,
+# input of LoadOrder), so the provenance query walks contract -> BOM/SSP in one
+# graph.
+#
+# Steps = planned activities; Variables = planned inputs/outputs. At execution
+# time (pipeline/plan_execution.py + traceability/provenance.py) each Step gets a
+# p-plan:Activity (correspondsToStep) and each Variable a realizing p-plan:Entity
+# (correspondsToVariable), wired by prov:used / prov:wasGeneratedBy. The two MUST
+# stay in lockstep: step short-names here match STEP_NAMES / UPSTREAM_STEP_NAMES
+# in the code (ce:step-<name>), and variable names match ce:var-<name>.
 
 @prefix ce:     <http://dynamicalsystems.group/compliance-engine/> .
 @prefix p-plan: <http://purl.org/net/p-plan#> .
 @prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .
 
+#################################################################
+# Variables — the artifacts that flow between steps
+#################################################################
+
+ce:var-Contract         a p-plan:Variable ; rdfs:label "contract" .
+ce:var-Obligations      a p-plan:Variable ; rdfs:label "obligations" .
+ce:var-RequiredControls a p-plan:Variable ; rdfs:label "required-control set" .
+ce:var-COP              a p-plan:Variable ; rdfs:label "Contract Obligation Profile (attested)" .
+ce:var-Order            a p-plan:Variable ; rdfs:label "signed Order" .
+ce:var-ModuleHashes     a p-plan:Variable ; rdfs:label "fetched module content hashes" .
+ce:var-PlanHash         a p-plan:Variable ; rdfs:label "terraform plan hash" .
+ce:var-Evidence         a p-plan:Variable ; rdfs:label "evidence set" .
+ce:var-OracleAssertions a p-plan:Variable ; rdfs:label "oracle control-check assertions" .
+ce:var-Attestations     a p-plan:Variable ; rdfs:label "human attestations" .
+ce:var-BOM              a p-plan:Variable ; rdfs:label "compliance BOM" .
+ce:var-SSP              a p-plan:Variable ; rdfs:label "System Security Plan" .
+
+#################################################################
+# Upstream plan — the Order Compiler: contract -> signed Order
+#################################################################
+
+ce:SOP-ORDER-COMPILE a p-plan:Plan ;
+    rdfs:label "SOP: compile a signed Order from a contract" .
+
+ce:step-ExtractObligations a p-plan:Step ; p-plan:isStepOfPlan ce:SOP-ORDER-COMPILE ;
+    p-plan:hasInputVar  ce:var-Contract ;
+    p-plan:hasOutputVar ce:var-Obligations ;
+    rdfs:comment "Draft the contract's obligations (AI-assisted); a Compliance Officer attests them next." .
+
+ce:step-ResolveControls a p-plan:Step ; p-plan:isStepOfPlan ce:SOP-ORDER-COMPILE ;
+    p-plan:isPrecededBy ce:step-ExtractObligations ;
+    p-plan:hasInputVar  ce:var-Obligations ;
+    p-plan:hasOutputVar ce:var-RequiredControls ;
+    rdfs:comment "Rule library expands obligations into the required-control set." .
+
+ce:step-AttestCOP a p-plan:Step ; p-plan:isStepOfPlan ce:SOP-ORDER-COMPILE ;
+    p-plan:isPrecededBy ce:step-ExtractObligations ;
+    p-plan:hasInputVar  ce:var-Obligations ;
+    p-plan:hasOutputVar ce:var-COP ;
+    rdfs:comment "GATE (human): the Compliance Officer attests the obligations. earl:manual / semiAuto." .
+
+ce:step-Gate1 a p-plan:Step ; p-plan:isStepOfPlan ce:SOP-ORDER-COMPILE ;
+    p-plan:isPrecededBy ce:step-ResolveControls ;
+    p-plan:hasInputVar  ce:var-RequiredControls ;
+    rdfs:comment "Planning coverage: forward / backward / no-untestable-claim. Refuses on a gap." .
+
+ce:step-EmitOrder a p-plan:Step ; p-plan:isStepOfPlan ce:SOP-ORDER-COMPILE ;
+    p-plan:isPrecededBy ce:step-Gate1 , ce:step-AttestCOP ;
+    p-plan:hasInputVar  ce:var-RequiredControls , ce:var-COP ;
+    p-plan:hasOutputVar ce:var-Order ;
+    rdfs:comment "Emit the hash-referenced signed Order — the seam to the Runtime." .
+
+#################################################################
+# Runtime plan — the Factory: signed Order -> signed compliance BOM
+#################################################################
+
 ce:SOP-CMMC-TIER1-PROVISION a p-plan:Plan ;
-    rdfs:label "SOP: execute an Order → build a Tier 1 IL4 CUI enclave → signed compliance BOM" .
+    rdfs:label "SOP: execute an Order -> build a Tier 1 IL4 CUI enclave -> signed compliance BOM" .
 
 ce:step-LoadOrder      a p-plan:Step ; p-plan:isStepOfPlan ce:SOP-CMMC-TIER1-PROVISION ;
+    p-plan:hasInputVar  ce:var-Order ;
+    p-plan:hasOutputVar ce:var-ModuleHashes ;
     rdfs:comment "Verify Order signature; load required-control set + module hashes; confirm Gate 1 held." .
 
 ce:step-FetchByHash    a p-plan:Step ; p-plan:isStepOfPlan ce:SOP-CMMC-TIER1-PROVISION ;
     p-plan:isPrecededBy ce:step-LoadOrder ;
+    p-plan:hasInputVar  ce:var-Order ;
+    p-plan:hasOutputVar ce:var-ModuleHashes ;
     rdfs:comment "Pull the exact modules + policies from the tier registry, by hash." .
 
 ce:step-Plan           a p-plan:Step ; p-plan:isStepOfPlan ce:SOP-CMMC-TIER1-PROVISION ;
     p-plan:isPrecededBy ce:step-FetchByHash ;
-    rdfs:comment "terraform plan → plan hash (static evidence)." .
+    p-plan:hasOutputVar ce:var-PlanHash ;
+    rdfs:comment "terraform plan -> plan hash (static evidence)." .
 
 ce:step-PolicyCheck    a p-plan:Step ; p-plan:isStepOfPlan ce:SOP-CMMC-TIER1-PROVISION ;
     p-plan:isPrecededBy ce:step-Plan ;
-    rdfs:comment "Pre-apply OPA/Checkov/Trivy — fail here STOPS the build before anything is built." .
+    p-plan:hasInputVar  ce:var-PlanHash ;
+    rdfs:comment "Pre-apply OPA/Checkov/Trivy + residency hard gate — fail here STOPS the build before anything is built." .
 
 ce:step-Apply          a p-plan:Step ; p-plan:isStepOfPlan ce:SOP-CMMC-TIER1-PROVISION ;
     p-plan:isPrecededBy ce:step-PolicyCheck ;
-    rdfs:comment "terraform apply — builds the real environment → state hash (gated)." .
+    rdfs:comment "terraform apply — builds the real environment -> state hash (gated)." .
 
 ce:step-CollectEvidence a p-plan:Step ; p-plan:isStepOfPlan ce:SOP-CMMC-TIER1-PROVISION ;
     p-plan:isPrecededBy ce:step-Apply ;
+    p-plan:hasOutputVar ce:var-Evidence ;
     rdfs:comment "Bind provisioning byproducts (plan/state/config hashes) as evidence." .
 
 ce:step-Oracles        a p-plan:Step ; p-plan:isStepOfPlan ce:SOP-CMMC-TIER1-PROVISION ;
     p-plan:isPrecededBy ce:step-CollectEvidence ;
-    rdfs:comment "Run oracles/ against what was built → EARL control-check assertions." .
+    p-plan:hasInputVar  ce:var-Evidence ;
+    p-plan:hasOutputVar ce:var-OracleAssertions ;
+    rdfs:comment "Run oracles/ against what was built -> EARL control-check assertions." .
 
 ce:step-Attestation    a p-plan:Step ; p-plan:isStepOfPlan ce:SOP-CMMC-TIER1-PROVISION ;
     p-plan:isPrecededBy ce:step-Oracles ;
+    p-plan:hasInputVar  ce:var-OracleAssertions , ce:var-Evidence ;
+    p-plan:hasOutputVar ce:var-Attestations ;
     rdfs:comment "GATE 2 — HUMAN Affirming Official: MET/NOT MET per control. earl:manual." .
 
 ce:step-Audit          a p-plan:Step ; p-plan:isStepOfPlan ce:SOP-CMMC-TIER1-PROVISION ;
     p-plan:isPrecededBy ce:step-Attestation ;
+    p-plan:hasInputVar  ce:var-Attestations ;
+    p-plan:hasOutputVar ce:var-BOM ;
     rdfs:comment "forward/backward vs. the Order's required-control set; SPRS + POA&M legality." .
 
 ce:step-SignAndStore   a p-plan:Step ; p-plan:isStepOfPlan ce:SOP-CMMC-TIER1-PROVISION ;
     p-plan:isPrecededBy ce:step-Audit ;
-    rdfs:comment "Sigstore-sign the BOM; write-once to the tier registry; return the BOM hash." .
+    p-plan:hasInputVar  ce:var-BOM ;
+    p-plan:hasOutputVar ce:var-BOM , ce:var-SSP ;
+    rdfs:comment "cosign-sign the BOM; write-once to the tier registry (Flexo); return the BOM hash." .

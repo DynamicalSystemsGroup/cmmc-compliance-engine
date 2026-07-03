@@ -390,6 +390,16 @@ def _run_preflight(provision_backend, store_backend, *, output_dir=None) -> None
 # Orchestrator
 # ---------------------------------------------------------------------------
 
+def _bind_runtime_provenance(state) -> None:
+    """Bind the run's real artifacts as P-Plan Entities (full-chain provenance).
+
+    Function-local import keeps the pipeline package free of a load-time
+    dependency on traceability.
+    """
+    from compliance_engine.traceability.provenance import bind_runtime_provenance
+    bind_runtime_provenance(state)
+
+
 def run_factory(
     ds: Dataset,
     order_iri,
@@ -424,11 +434,13 @@ def run_factory(
     run_stage_plan(state)
     run_stage_policycheck(state)
     if state.halted:
+        _bind_runtime_provenance(state)  # partial chain for a halted run
         return state  # safety valve — stop before Apply
 
     run_stage_apply(state)
     run_stage_collect_evidence(state)
     run_stage_oracles(state)
+    _bind_runtime_provenance(state)
     return state
 
 
