@@ -1,5 +1,13 @@
 ## CMMC Level 2 — All 110 Controls Reference
 
+**Status update (2026-07-03): the engine now claims every one of the 110 catalog controls.**
+
+- **22** via the original tier-1 machine modules (Workspace 2SV, CMEK, IAM, DLP, org policy, audit-log export, service allowlist, TF baseline, monitoring, CSP-inherited physical).
+- **45** via 13 new Track A machine modules (VPC segmentation, EDR, MDM, SCC, Workspace admin policy, BeyondCorp, GitHub branch protection, ops-MFA, Cloud Logging, BinAuth, session control, VPC-SC, IAM privileged use).
+- **43** via 16 new Track B attested-reference (policy) modules — each pointing at an authoritative source (LMS, HRIS, DocRepo, EngineHistory) via `ce:Reference` and freshness-gated by `ce:oracle-attested-reference`.
+
+Every control now has a claiming module. Machine-covered controls still emit config-check evidence; policy-covered controls emit `ce:AttestedReference` evidence with a fixture AO signature (`evidentiary_status="attested-reference-mock"`). NEEDS_ACTION is a first-class outcome for references that are missing / stale / awaiting attestation. The status table below still reflects the original tier-1 slice (✅ = tier-1 machine-checked); the new modules add the previous 🔧 and 📋 columns as attested-reference coverage on top.
+
 **Legend:**
 
 - ✅ **Covered** — machine-checked today via Terraform/oracle + attestation

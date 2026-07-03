@@ -32,9 +32,27 @@ def _attested(ds, obligations, **kw):
 # ---------------------------------------------------------------------------
 
 def test_gate1_gap_refuses_order_and_names_control():
-    """Omit a module for a 5-point control ⇒ Order refused; gap names it."""
+    """Omit a module for a 5-point control ⇒ Order refused; gap names it.
+
+    Track A + B now claim all 110 catalog controls, so to exercise the gap
+    path we STRIP one module's claim from the loaded graph before Gate 1
+    runs. AC.L2-3.1.12 (5-pt) is claimed by VPNAccess_BeyondCorp — remove
+    that claim and Gate 1 must refuse.
+    """
     ds, obl = compiler.load_pipeline_dataset(cop_ttl=COP_DRAFT)
-    # Add an obligation requiring an unclaimed 5-point control.
+
+    # Strip VPNAccess_BeyondCorp's claim on AC.L2-3.1.12 to synthesize a gap.
+    # Gate 1 reads via the sysml:SatisfyRequirementUsage edge; drop BOTH the
+    # cmmc:controlsSatisfied triple AND the satisfy-edge blank node's
+    # satisfiedRequirement triple.
+    from ontology.prefixes import SYSML
+    struct = graph_for(ds, "structural")
+    struct.remove((CE.VPNAccess_BeyondCorp, CMMC.controlsSatisfied,
+                   CMMC["AC.L2-3.1.12"]))
+    for rel in list(struct.objects(CE.VPNAccess_BeyondCorp, SYSML.ownedRelationship)):
+        struct.remove((rel, SYSML.satisfiedRequirement, CMMC["AC.L2-3.1.12"]))
+
+    # Require the now-unclaimed 5-point control.
     obl = dict(obl)
     obl["OBL-EXTRA-MFA-REMOTE"] = rl.Obligation(
         "OBL-EXTRA-MFA-REMOTE", rl.DATA, derives=frozenset({"AC.L2-3.1.12"})

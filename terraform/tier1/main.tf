@@ -70,6 +70,68 @@ locals {
                    "google_compute_firewall.allow_internal_tls"]
       inherited = false
     }
+    EndpointVerification_CrowdStrike = {
+      controls  = ["SI.L2-3.14.2", "SI.L2-3.14.4", "SI.L2-3.14.7"]
+      resources = ["null_resource.endpoint_edr"]
+      inherited = false
+    }
+    MDM_ChromeOS = {
+      controls  = ["AC.L2-3.1.16", "AC.L2-3.1.17", "AC.L2-3.1.18",
+                   "AC.L2-3.1.19", "MP.L2-3.8.7"]
+      resources = ["null_resource.mdm_chromeos"]
+      inherited = false
+    }
+    SecurityCommandCenter = {
+      controls  = ["RA.L2-3.11.2", "SI.L2-3.14.1", "SI.L2-3.14.5"]
+      resources = ["null_resource.scc_vuln_mgmt"]
+      inherited = false
+    }
+    WorkspaceAdmin_Policy = {
+      controls  = ["IA.L2-3.5.1", "IA.L2-3.5.5", "IA.L2-3.5.6", "IA.L2-3.5.7",
+                   "IA.L2-3.5.8", "IA.L2-3.5.9", "IA.L2-3.5.10", "IA.L2-3.5.11"]
+      resources = ["null_resource.workspace_admin_policy"]
+      inherited = false
+    }
+    VPNAccess_BeyondCorp = {
+      controls  = ["AC.L2-3.1.12", "AC.L2-3.1.13", "AC.L2-3.1.14"]
+      resources = ["null_resource.beyondcorp_remote"]
+      inherited = false
+    }
+    ChangeManagement_GitHub = {
+      controls  = ["CM.L2-3.4.3", "CM.L2-3.4.5"]
+      resources = ["null_resource.github_change_mgmt"]
+      inherited = false
+    }
+    CloudIdentity_RemoteMaintenance = {
+      controls  = ["MA.L2-3.7.5"]
+      resources = ["null_resource.ops_mfa"]
+      inherited = false
+    }
+    CloudLogging_Config = {
+      controls  = ["AU.L2-3.3.4", "AU.L2-3.3.7", "AU.L2-3.3.8", "AU.L2-3.3.9"]
+      resources = ["google_storage_bucket.audit_logs", "google_logging_project_sink.audit"]
+      inherited = false
+    }
+    OrgPolicy_Allowlist = {
+      controls  = ["CM.L2-3.4.8", "CM.L2-3.4.9"]
+      resources = ["null_resource.binauth_allowlist"]
+      inherited = false
+    }
+    OrgPolicy_SessionControl = {
+      controls  = ["AC.L2-3.1.8", "AC.L2-3.1.10", "AC.L2-3.1.11"]
+      resources = ["null_resource.session_control"]
+      inherited = false
+    }
+    AccessTransparency_ExternalSystems = {
+      controls  = ["AC.L2-3.1.20"]
+      resources = ["null_resource.vpc_service_controls"]
+      inherited = false
+    }
+    IAMRoles_Privilege = {
+      controls  = ["AC.L2-3.1.6", "AC.L2-3.1.7"]
+      resources = ["null_resource.iam_privileged"]
+      inherited = false
+    }
     # CSP-inherited physical protection: NOT machine-provable at plan time
     # (MET-by-inheritance, human-attested). Tagged for traceability, but the
     # generator skips binding a plan-derived PASS for inherited modules.

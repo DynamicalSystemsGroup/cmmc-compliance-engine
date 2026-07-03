@@ -1,0 +1,21 @@
+{
+  "collected_at": "2026-07-02T00:00:00Z",
+  "collector_version": "mock-0.1.0",
+  "controls": [
+    "SI.L2-3.14.2",
+    "SI.L2-3.14.4",
+    "SI.L2-3.14.7"
+  ],
+  "evidentiary_status": "mock",
+  "export_command": "mock-export",
+  "raw": {
+    "coverage_percent": 100,
+    "sensor_status": "healthy"
+  },
+  "source_system": "crowdstrike.falcon",
+  "summary": {
+    "anomaly_detection_active": true,
+    "av_definition_age_hours": 6,
+    "malware_protection_active": true
+  }
+}

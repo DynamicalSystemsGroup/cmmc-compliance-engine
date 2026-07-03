@@ -1,0 +1,19 @@
+{
+  "collected_at": "2026-07-02T00:00:00Z",
+  "collector_version": "mock-0.1.0",
+  "controls": [
+    "CM.L2-3.4.3",
+    "CM.L2-3.4.5"
+  ],
+  "evidentiary_status": "mock",
+  "export_command": "mock-export",
+  "raw": {
+    "repo": "dsg/compliance-engine",
+    "required_review_count": 1
+  },
+  "source_system": "github.api",
+  "summary": {
+    "change_log_present": true,
+    "required_reviews_enforced": true
+  }
+}

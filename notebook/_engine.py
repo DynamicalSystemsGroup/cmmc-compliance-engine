@@ -39,6 +39,25 @@ from ontology.prefixes import NAMED_GRAPHS  # noqa: E402
 SCENARIOS: tuple[str, ...] = cli.EVIDENCE_SETS          # ("all-covered", "gap", "contradiction")
 SEED: str = cli.RUN_SEED_TS                             # fixed timestamp → deterministic hashes
 GAP_CONTROL: str = cli._GAP_CONTROL                     # the required-but-unclaimed control
+
+
+class _UnknownControlAsGate1Report:
+    """Minimal Gate1Report shim for the "unknown control id" refusal path.
+
+    Provides just enough surface (`.passed`, `.gap_controls()`) for callers
+    that treat a Gate 1 refusal uniformly. The real path is exercised by
+    tests/test_gate1.py; here we only need the message to flow through.
+    """
+
+    def __init__(self, message: str) -> None:
+        self._message = message
+        self.passed = False
+
+    def gap_controls(self) -> list[str]:
+        return [GAP_CONTROL]
+
+    def render(self) -> str:
+        return f"Gate 1 REFUSED (unknown control id): {self._message}"
 CONTRACT_ID: str = cli.CONTRACT_ID                      # "NV012"
 
 # The eight named-graph layers, in the order data flows through them.
@@ -108,8 +127,16 @@ def obligation_rows(obligations: dict[str, Any]) -> list[dict[str, Any]]:
 def required_control_set(obligations: dict[str, Any]) -> tuple[list[str], list[str]]:
     """The authoritative required-control union + policy markers the Order is built
     from (`compiler.resolve_required_controls`). Sorted for stable display.
+
+    For the `gap` scenario, an obligation cites a non-catalog control id so
+    the resolver raises UnknownControlError before Gate 1. Return an empty
+    required set with a synthetic marker so downstream callers still get a
+    well-shaped tuple; compile_order_or_refusal produces the refusal.
     """
-    required, markers = compiler.resolve_required_controls(obligations)
+    try:
+        required, markers = compiler.resolve_required_controls(obligations)
+    except rl.UnknownControlError:
+        return [], []
     return sorted(required), sorted(markers)
 
 
@@ -150,6 +177,12 @@ def compile_order_or_refusal(ds, obligations: dict[str, Any], cop_attestation):
         return order, None
     except compiler.Gate1Failed as exc:
         return None, exc.report
+    except rl.UnknownControlError as exc:
+        # The gap demo cites a syntactically-valid but non-catalog control id
+        # so the rule_library's pre-Gate-1 validator raises. Return it as a
+        # Gate1Failed-shaped shim so downstream callers can treat it as a
+        # refusal uniformly.
+        return None, _UnknownControlAsGate1Report(str(exc))
 
 
 # ---------------------------------------------------------------------------

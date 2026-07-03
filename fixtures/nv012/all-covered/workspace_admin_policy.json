@@ -1,0 +1,30 @@
+{
+  "collected_at": "2026-07-02T00:00:00Z",
+  "collector_version": "mock-0.1.0",
+  "controls": [
+    "IA.L2-3.5.1",
+    "IA.L2-3.5.5",
+    "IA.L2-3.5.6",
+    "IA.L2-3.5.7",
+    "IA.L2-3.5.8",
+    "IA.L2-3.5.9",
+    "IA.L2-3.5.10",
+    "IA.L2-3.5.11"
+  ],
+  "evidentiary_status": "mock",
+  "export_command": "mock-export",
+  "raw": {
+    "policy_id": "workspace-cui-baseline-v1"
+  },
+  "source_system": "workspace.admin_sdk",
+  "summary": {
+    "auth_feedback_obscured": true,
+    "identifier_reuse_days": 180,
+    "inactive_disable_days": 30,
+    "password_complexity_enforced": true,
+    "password_reuse_prohibited": true,
+    "passwords_stored_hashed": true,
+    "temp_password_expires_first_use": true,
+    "user_uniquely_identified": true
+  }
+}

@@ -35,6 +35,15 @@ def ds():
     d = create_dataset()
     load_into(d, "ontology", CATALOG)
     load_into(d, "structural", TIER1)
+    # These tests exercise Gate 1's "unclaimed 5-pt control" path using
+    # AC.L2-3.1.12 as the fixture. Track A's VPNAccess_BeyondCorp module now
+    # claims it — strip that specific claim so the tests still exercise the
+    # forward-failure path with a real catalog control.
+    struct = graph_for(d, "structural")
+    struct.remove((CE.VPNAccess_BeyondCorp, CMMC.controlsSatisfied,
+                   CMMC["AC.L2-3.1.12"]))
+    for rel in list(struct.objects(CE.VPNAccess_BeyondCorp, SYSML.ownedRelationship)):
+        struct.remove((rel, SYSML.satisfiedRequirement, CMMC["AC.L2-3.1.12"]))
     return d
 
 

@@ -1,0 +1,18 @@
+{
+  "collected_at": "2026-07-02T00:00:00Z",
+  "collector_version": "mock-0.1.0",
+  "controls": [
+    "AC.L2-3.1.6",
+    "AC.L2-3.1.7"
+  ],
+  "evidentiary_status": "mock",
+  "export_command": "mock-export",
+  "raw": {
+    "privileged_actions_last_24h": 3
+  },
+  "source_system": "gcp.iam",
+  "summary": {
+    "non_privileged_accounts_used_for_non_security": true,
+    "privileged_actions_logged": true
+  }
+}

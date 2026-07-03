@@ -35,7 +35,12 @@ CONTRACT_ID = "NV012"
 EVIDENCE_SETS = ("all-covered", "gap", "contradiction")
 # A required-but-unclaimed 5-point control used to force the Gate-1 gap scenario
 # (there is no tier1.ttl module for it — see Round 5 coverage surface).
-_GAP_CONTROL = "AC.L2-3.1.12"
+# The gap demo cites a syntactically-valid but non-catalog control ID so the
+# rule_library's control-id validator refuses the COP before Gate 1 even runs.
+# (Track A + B now cover all 110 real catalog controls, so a real "unclaimed
+# but required" gap is impossible; a fake control ID is the equivalent
+# educational refusal path.)
+_GAP_CONTROL = "XX.L2-3.99.99"
 
 app = typer.Typer(add_completion=False, help="NV012 compliance engine — operator CLI.")
 
@@ -146,6 +151,13 @@ def _load_run_state(ds, out: Path):
 # Stage helpers (used by both `demo` and the standalone subcommands)
 # ---------------------------------------------------------------------------
 
+def _gap_message(report_or_str) -> str:
+    """Format either a Gate1Report or an UnknownControlError string uniformly."""
+    if isinstance(report_or_str, str):
+        return report_or_str
+    return f"Missing module for required control(s): {', '.join(report_or_str.gap_controls())}"
+
+
 class _GapRefused(Exception):
     """Gate 1 refused the Order — carries the report for a clean CLI message."""
 
@@ -171,6 +183,11 @@ def _do_compile(ds, obligations, evidence_set: str, now: str):
         return compiler.compile_order(ds, obligations, att, now=now)
     except compiler.Gate1Failed as exc:
         raise _GapRefused(exc.report) from exc
+    except rl.UnknownControlError as exc:
+        # The gap demo cites a fake control ID that fails catalog validation
+        # before Gate 1 runs. Surface it via the same _GapRefused path so the
+        # CLI message + exit code stay consistent with a real coverage gap.
+        raise _GapRefused(str(exc)) from exc
 
 
 def _do_run_factory(ds, order_iri, evidence_set: str, backend: str, output_dir: Path):
@@ -310,8 +327,7 @@ def compile_order_cmd(
     try:
         order = _do_compile(ds, obligations, evidence_set, RUN_SEED_TS)
     except _GapRefused as gap:
-        typer.echo(f"Gate 1 REFUSED — Order not emitted. Missing module for: "
-                   f"{', '.join(gap.report.gap_controls())}")
+        typer.echo(f"Gate 1 REFUSED — Order not emitted. {_gap_message(gap.report)}")
         raise typer.Exit(2)
     _save_ds(ds, out)
     typer.echo(f"Order compiled: {order.order_hash} "
@@ -436,7 +452,7 @@ def demo(
         order = _do_compile(ds, obligations, evidence_set, RUN_SEED_TS)
     except _GapRefused as gap:
         typer.echo(f"[1/6 compile-order] Gate 1 REFUSED — Order NOT emitted. "
-                   f"Missing module for required control(s): {', '.join(gap.report.gap_controls())}")
+                   f"{_gap_message(gap.report)}")
         raise typer.Exit(2)
     typer.echo(f"[1/6 compile-order] Order {order.order_hash} "
                f"({len(order.required_controls)} controls)")

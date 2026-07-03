@@ -1,0 +1,25 @@
+{
+  "collected_at": "2026-07-02T00:00:00Z",
+  "collector_version": "mock-0.1.0",
+  "controls": [
+    "AU.L2-3.3.4",
+    "AU.L2-3.3.7",
+    "AU.L2-3.3.8",
+    "AU.L2-3.3.9"
+  ],
+  "evidentiary_status": "mock",
+  "export_command": "mock-export",
+  "raw": {
+    "ntp": "time.google.com",
+    "sinks": [
+      "audit-sink"
+    ]
+  },
+  "source_system": "gcp.cloudlogging",
+  "summary": {
+    "audit_mgmt_privileged": true,
+    "log_bucket_access_restricted": true,
+    "log_failure_alerting": true,
+    "ntp_configured": true
+  }
+}

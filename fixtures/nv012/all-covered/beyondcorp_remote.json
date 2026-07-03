@@ -1,0 +1,20 @@
+{
+  "collected_at": "2026-07-02T00:00:00Z",
+  "collector_version": "mock-0.1.0",
+  "controls": [
+    "AC.L2-3.1.12",
+    "AC.L2-3.1.13",
+    "AC.L2-3.1.14"
+  ],
+  "evidentiary_status": "mock",
+  "export_command": "mock-export",
+  "raw": {
+    "policy": "cui-zero-trust-v1"
+  },
+  "source_system": "gcp.beyondcorp",
+  "summary": {
+    "remote_routes_via_managed_proxy": true,
+    "remote_sessions_monitored": true,
+    "remote_tls_enforced": true
+  }
+}

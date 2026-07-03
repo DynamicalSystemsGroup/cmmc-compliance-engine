@@ -1,0 +1,16 @@
+{
+  "collected_at": "2026-07-02T00:00:00Z",
+  "collector_version": "mock-0.1.0",
+  "controls": [
+    "AC.L2-3.1.20"
+  ],
+  "evidentiary_status": "mock",
+  "export_command": "mock-export",
+  "raw": {
+    "perimeter": "cui-enclave-perimeter"
+  },
+  "source_system": "gcp.vpcsc",
+  "summary": {
+    "external_system_perimeter_defined": true
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "collected_at": "2026-07-02T00:00:00Z",
+  "collector_version": "mock-0.1.0",
+  "controls": [
+    "AC.L2-3.1.8",
+    "AC.L2-3.1.10",
+    "AC.L2-3.1.11"
+  ],
+  "evidentiary_status": "mock",
+  "export_command": "mock-export",
+  "raw": {
+    "idle_minutes": 10,
+    "lockout_threshold": 5
+  },
+  "source_system": "gcp.cloudidentity",
+  "summary": {
+    "failed_login_lockout_enabled": true,
+    "idle_session_timeout_minutes": 10,
+    "session_termination_conditions": true
+  }
+}

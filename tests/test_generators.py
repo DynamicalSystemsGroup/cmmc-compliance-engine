@@ -18,23 +18,45 @@ from evidence.generators.mock_config import MockConfigExportGenerator
 from evidence.generators.mock_policy import MockPolicyCheckGenerator
 
 # summary keys the oracles read (must stay aligned with oracles/criteria.py).
-# 5 Tier-1 keys + 8 VPC_Segmentation keys added by Track A module 1.
+# 5 Tier-1 keys + 45 Track A summary keys across 13 fixture files.
 _ORACLE_KEYS = {
-    # Tier 1
-    "mfa_enforced_privileged",
-    "fips_module_present",
-    "cui_encrypted_at_rest",
-    "unauthorized_principals",
-    "data_region",
-    # VPC_Segmentation (SC.13.3/4/5/6/7/8/9/15)
-    "cui_subnet_private",
-    "shared_resource_isolation",
-    "public_access_denied",
-    "default_deny_ingress",
-    "split_tunnel_disabled",
-    "tls_minimum_version",
-    "session_termination_configured",
-    "session_authenticity_protected",
+    # Tier 1 (5)
+    "mfa_enforced_privileged", "fips_module_present", "cui_encrypted_at_rest",
+    "unauthorized_principals", "data_region",
+    # VPC_Segmentation (8)
+    "cui_subnet_private", "shared_resource_isolation", "public_access_denied",
+    "default_deny_ingress", "split_tunnel_disabled", "tls_minimum_version",
+    "session_termination_configured", "session_authenticity_protected",
+    # EndpointVerification_CrowdStrike (3)
+    "malware_protection_active", "av_definition_age_hours", "anomaly_detection_active",
+    # MDM_ChromeOS (5)
+    "wireless_authorized", "wireless_crypto_enforced", "mdm_enrolled",
+    "mobile_encryption_at_rest", "removable_media_blocked",
+    # SecurityCommandCenter (3)
+    "vuln_scan_age_days", "high_severity_findings_open", "scan_coverage_complete",
+    # WorkspaceAdmin_Policy (8)
+    "user_uniquely_identified", "identifier_reuse_days", "inactive_disable_days",
+    "password_complexity_enforced", "password_reuse_prohibited",
+    "temp_password_expires_first_use", "passwords_stored_hashed",
+    "auth_feedback_obscured",
+    # VPNAccess_BeyondCorp (3)
+    "remote_sessions_monitored", "remote_tls_enforced", "remote_routes_via_managed_proxy",
+    # ChangeManagement_GitHub (2)
+    "change_log_present", "required_reviews_enforced",
+    # CloudIdentity_RemoteMaintenance (1)
+    "ops_mfa_enforced",
+    # CloudLogging_Config (4)
+    "log_failure_alerting", "ntp_configured", "log_bucket_access_restricted",
+    "audit_mgmt_privileged",
+    # OrgPolicy_Allowlist (2)
+    "deny_by_default_binauth", "user_software_approval_required",
+    # OrgPolicy_SessionControl (3)
+    "failed_login_lockout_enabled", "idle_session_timeout_minutes",
+    "session_termination_conditions",
+    # AccessTransparency_ExternalSystems (1)
+    "external_system_perimeter_defined",
+    # IAMRoles_Privilege (2)
+    "non_privileged_accounts_used_for_non_security", "privileged_actions_logged",
 }
 
 
@@ -54,8 +76,8 @@ class TestProtocolConformance:
 class TestMockConfigExportGenerator:
     def test_all_covered_emits_every_criterion(self):
         arts = MockConfigExportGenerator().collect(GeneratorContext(evidence_set="all-covered"))
-        # 5 tier-1 fixtures + 1 VPC_Segmentation fixture = 6 artifacts.
-        assert len(arts) == 6
+        # 5 tier-1 fixtures + 13 Track A fixtures = 18 artifacts.
+        assert len(arts) == 5 + 13 == 18
         assert _summary_keys(arts) == _ORACLE_KEYS
 
     def test_artifact_shape(self):

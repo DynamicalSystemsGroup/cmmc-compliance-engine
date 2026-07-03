@@ -20,10 +20,10 @@ def test_all_covered_completes_with_full_score():
     assert r["order"].order_hash
     assert len(r["required_controls"]) == 22
     assert len(r["order"].required_controls) == 22
-    # 6 tier-1 oracle outcomes + 8 VPC_Segmentation criteria (SC.13.3/4/5/6/7/8/9/15).
-    assert len(r["factory_state"].oracles.outcomes) == 6 + 8 == 14
-    # 7 tier-1 evidence nodes + 1 VPC_Segmentation config export fixture.
-    assert r["factory_state"].evidence.evidence_node_count == 7 + 1 == 8
+    # 6 tier-1 outcomes + 45 Track A criteria = 51 oracle outcomes.
+    assert len(r["factory_state"].oracles.outcomes) == 6 + 45 == 51
+    # 7 tier-1 evidence nodes + 13 Track A config exports = 20 evidence nodes.
+    assert r["factory_state"].evidence.evidence_node_count == 7 + 13 == 20
 
     audit = r["audit"]
     assert audit.sprs.score == 110
@@ -42,7 +42,7 @@ def test_gap_is_refused_at_gate_1_and_names_the_control():
 
     assert r["refused"] is True
     assert r["order"] is None
-    assert r["gate1"].gap_controls() == ["AC.L2-3.1.12"]
+    assert r["gate1"].gap_controls() == [_engine.GAP_CONTROL]
     # nothing downstream ran
     assert "factory_state" not in r
     assert "bom" not in r

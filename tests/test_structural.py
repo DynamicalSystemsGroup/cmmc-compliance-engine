@@ -59,6 +59,21 @@ EXPECTED_MACHINE = {
     "VPC_Segmentation": {"SC.L2-3.13.3", "SC.L2-3.13.4", "SC.L2-3.13.5",
                           "SC.L2-3.13.6", "SC.L2-3.13.7", "SC.L2-3.13.8",
                           "SC.L2-3.13.9", "SC.L2-3.13.15"},
+    "EndpointVerification_CrowdStrike": {"SI.L2-3.14.2", "SI.L2-3.14.4", "SI.L2-3.14.7"},
+    "MDM_ChromeOS": {"AC.L2-3.1.16", "AC.L2-3.1.17", "AC.L2-3.1.18",
+                     "AC.L2-3.1.19", "MP.L2-3.8.7"},
+    "SecurityCommandCenter": {"RA.L2-3.11.2", "SI.L2-3.14.1", "SI.L2-3.14.5"},
+    "WorkspaceAdmin_Policy": {"IA.L2-3.5.1", "IA.L2-3.5.5", "IA.L2-3.5.6",
+                              "IA.L2-3.5.7", "IA.L2-3.5.8", "IA.L2-3.5.9",
+                              "IA.L2-3.5.10", "IA.L2-3.5.11"},
+    "VPNAccess_BeyondCorp": {"AC.L2-3.1.12", "AC.L2-3.1.13", "AC.L2-3.1.14"},
+    "ChangeManagement_GitHub": {"CM.L2-3.4.3", "CM.L2-3.4.5"},
+    "CloudIdentity_RemoteMaintenance": {"MA.L2-3.7.5"},
+    "CloudLogging_Config": {"AU.L2-3.3.4", "AU.L2-3.3.7", "AU.L2-3.3.8", "AU.L2-3.3.9"},
+    "OrgPolicy_Allowlist": {"CM.L2-3.4.8", "CM.L2-3.4.9"},
+    "OrgPolicy_SessionControl": {"AC.L2-3.1.8", "AC.L2-3.1.10", "AC.L2-3.1.11"},
+    "AccessTransparency_ExternalSystems": {"AC.L2-3.1.20"},
+    "IAMRoles_Privilege": {"AC.L2-3.1.6", "AC.L2-3.1.7"},
 }
 # Inherited module: verificationMethod is a literal (attested, not machine).
 EXPECTED_INHERITED = {
@@ -278,16 +293,13 @@ def test_coverage_query_reports_proven_vs_attested(ds, catalog_controls):
 
     assert claimed == expected_claimed
     assert machine_verified == expected_machine
-    # 20 (tier1) + 8 (VPC_Segmentation) = 28 machine-verified so far. Track A
-    # modules 2-13 will push this toward the full 45.
-    assert len(machine_verified) == 20 + 8 == 28
-    # 22 tier1 + 43 track B + 8 VPC = 73 claimed. Remaining 37 come from
-    # Track A modules 2-13.
-    assert len(claimed) == 22 + 43 + 8 == 73
-    assert len(catalog_controls - claimed) == 110 - 73 == 37
-    # Everything not machine-verified today (inherited + attested-reference +
-    # not-yet-claimed).
-    assert len(no_machine) == TOTAL_CONTROLS - 28 == 82
+    # 20 (tier1 machine) + 45 (Track A) = 65 machine-verified over the full 110.
+    assert len(machine_verified) == 20 + 45 == 65
+    # Full coverage: 22 tier-1 + 45 Track A + 43 Track B = 110.
+    assert len(claimed) == 22 + 45 + 43 == 110
+    assert len(catalog_controls - claimed) == 0
+    # 110 total - 65 machine-verified = 45 non-machine (inherited + attested-ref).
+    assert len(no_machine) == TOTAL_CONTROLS - 65 == 45
     # The inherited pair AND every Track B policy control is claimed but NOT
     # machine-verified in the config-check sense.
     assert expected_inherited <= no_machine

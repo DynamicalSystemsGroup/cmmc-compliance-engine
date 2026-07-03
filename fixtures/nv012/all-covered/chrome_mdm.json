@@ -1,0 +1,25 @@
+{
+  "collected_at": "2026-07-02T00:00:00Z",
+  "collector_version": "mock-0.1.0",
+  "controls": [
+    "AC.L2-3.1.16",
+    "AC.L2-3.1.17",
+    "AC.L2-3.1.18",
+    "AC.L2-3.1.19",
+    "MP.L2-3.8.7"
+  ],
+  "evidentiary_status": "mock",
+  "export_command": "mock-export",
+  "raw": {
+    "enrolled_devices": 10,
+    "policy": "cui-mobile-baseline-v1"
+  },
+  "source_system": "chrome.cloud_mgmt",
+  "summary": {
+    "mdm_enrolled": true,
+    "mobile_encryption_at_rest": true,
+    "removable_media_blocked": true,
+    "wireless_authorized": true,
+    "wireless_crypto_enforced": true
+  }
+}

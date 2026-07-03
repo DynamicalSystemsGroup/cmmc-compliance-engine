@@ -64,7 +64,10 @@ def test_demo_gap_stops_at_gate1(tmp_path):
     res = _run(["demo", "--evidence-set", "gap"], tmp_path)
     assert res.exit_code != 0
     assert "Gate 1 REFUSED" in res.output
-    assert "AC.L2-3.1.12" in res.output          # the named missing control
+    # Track A + B now cover all 110 catalog controls, so the demo names the
+    # fake unknown control id (XX.L2-3.99.99) that trips the pre-Gate-1
+    # catalog validator — same educational refusal path.
+    assert "XX.L2-3.99.99" in res.output
     # Factory never ran → no BOM and no SSP written.
     assert not (tmp_path / "bom.json").exists()
     assert not (tmp_path / "ssp.md").exists()

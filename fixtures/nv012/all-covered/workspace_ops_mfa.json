@@ -1,0 +1,19 @@
+{
+  "collected_at": "2026-07-02T00:00:00Z",
+  "collector_version": "mock-0.1.0",
+  "controls": [
+    "MA.L2-3.7.5"
+  ],
+  "evidentiary_status": "mock",
+  "export_command": "mock-export",
+  "raw": {
+    "groups_enforced": [
+      "ops-*",
+      "break-glass-*"
+    ]
+  },
+  "source_system": "workspace.admin_sdk",
+  "summary": {
+    "ops_mfa_enforced": true
+  }
+}

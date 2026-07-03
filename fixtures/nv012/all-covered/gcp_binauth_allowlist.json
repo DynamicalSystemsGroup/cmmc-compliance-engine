@@ -1,0 +1,18 @@
+{
+  "collected_at": "2026-07-02T00:00:00Z",
+  "collector_version": "mock-0.1.0",
+  "controls": [
+    "CM.L2-3.4.8",
+    "CM.L2-3.4.9"
+  ],
+  "evidentiary_status": "mock",
+  "export_command": "mock-export",
+  "raw": {
+    "default_admission_rule": "REQUIRE_ATTESTATION"
+  },
+  "source_system": "gcp.binaryauth",
+  "summary": {
+    "deny_by_default_binauth": true,
+    "user_software_approval_required": true
+  }
+}

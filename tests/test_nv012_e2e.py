@@ -176,8 +176,20 @@ class TestHappyPathAllCovered:
 
 class TestGate1GapRefusesOrder:
     def test_uncovered_control_refuses_order_and_factory_never_runs(self):
+        """Strip VPNAccess_BeyondCorp's claim on AC.L2-3.1.12 (5-pt) so it's
+        genuinely unclaimed, then require it. Gate 1 must refuse and the
+        Factory must never run. Track A+B now claim all 110 controls, so the
+        strip is how we synthesize a real coverage gap for this test."""
+        from ontology.prefixes import CMMC, SYSML
         ds, obl = compiler.load_pipeline_dataset()
-        # Require an uncovered 5-point control (no tier1 module claims it).
+
+        struct = graph_for(ds, "structural")
+        struct.remove((CE.VPNAccess_BeyondCorp, CMMC.controlsSatisfied,
+                       CMMC["AC.L2-3.1.12"]))
+        for rel in list(struct.objects(CE.VPNAccess_BeyondCorp,
+                                        SYSML.ownedRelationship)):
+            struct.remove((rel, SYSML.satisfiedRequirement, CMMC["AC.L2-3.1.12"]))
+
         obl = dict(obl)
         obl["OBL-EXTRA-REMOTE-MFA"] = rl.Obligation(
             "OBL-EXTRA-REMOTE-MFA", rl.DATA, derives=frozenset({"AC.L2-3.1.12"}),
