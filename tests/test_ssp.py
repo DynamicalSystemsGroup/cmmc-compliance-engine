@@ -194,7 +194,7 @@ class TestR12Banner:
 class TestColophonHooks:
     def test_sprs_hook_pending_when_none(self):
         doc = compile_ssp(_base_dataset())
-        assert "SPRS summary: pending audit (U10/U11 integration)." in doc
+        assert "SPRS summary: pending audit (no audit report supplied)." in doc
 
     def test_sprs_hook_renders_when_provided(self):
         summary = SprsSummary(score=110, status="Final", met_by_machine=5,
@@ -292,7 +292,7 @@ class TestAuditBomWiring:
         report = _synthetic_audit(None, machine=[], human=[])
         assert sprs_summary_from_audit(report) is None
         doc = compile_ssp_from_run(_base_dataset(), audit_report=report)
-        assert "SPRS summary: pending audit (U10/U11 integration)." in doc
+        assert "SPRS summary: pending audit (no audit report supplied)." in doc
 
     def test_contradiction_count_surfaced(self):
         report = _synthetic_audit(

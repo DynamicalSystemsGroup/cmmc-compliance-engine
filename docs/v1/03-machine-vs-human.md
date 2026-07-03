@@ -103,7 +103,7 @@ the machine staying in its lane.
 
 ---
 
-## The contradiction check (R13): the system won't lie to itself
+## The contradiction check: the system won't lie to itself
 
 Here's the subtle danger the design guards against. Suppose:
 
@@ -113,9 +113,8 @@ Here's the subtle danger the design guards against. Suppose:
 
 That's a **contradiction** — the human and the machine flatly disagree, with no
 explanation. A naive system would just trust the human's "MET" and print a clean
-report. This one **refuses to**. It **surfaces the conflict** as a first-class flag
-(this rule is called **R13**), so an auditor sees it plainly instead of it hiding
-under a green checkmark.
+report. This one **refuses to**. It **surfaces the conflict** as a first-class flag,
+so an auditor sees it plainly instead of it hiding under a green checkmark.
 
 Two honest outcomes are allowed:
 

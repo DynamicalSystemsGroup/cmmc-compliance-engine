@@ -443,8 +443,8 @@ def _render_markdown(report: AuditReport) -> str:
                 lines.append(f"- **{f.subject}**: {f.reason}")
             lines.append("")
 
-    # Contradiction dimension (R13)
-    lines.append("## Contradiction dimension (R13)")
+    # Contradiction dimension (rule R13 in the build plan)
+    lines.append("## Contradictions (attested MET over failed machine check)")
     if not report.contradictions:
         lines.append("No contradictions: no MET attestation stands over a failed/absent oracle without an override.")
     else:

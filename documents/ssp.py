@@ -66,7 +66,7 @@ _NO_ATTESTATION_STATUS = "PLANNED"
 
 @dataclass(frozen=True)
 class SprsSummary:
-    """The SPRS/contradiction numbers U10-audit + U11-BOM supply at integration."""
+    """The SPRS/contradiction numbers the audit and BOM steps supply."""
 
     score: int
     status: str                 # "Final" | "Conditional" | "Ineligible"
@@ -351,7 +351,7 @@ def compile_ssp(
 
     # SPRS summary hook (U10-audit + U11-BOM).
     if sprs_summary is None:
-        sprs_line = "SPRS summary: pending audit (U10/U11 integration)."
+        sprs_line = "SPRS summary: pending audit (no audit report supplied)."
     else:
         s = sprs_summary
         sprs_line = (
@@ -387,7 +387,7 @@ def compile_ssp(
         lines.extend([
             "",
             f"**NON-EVIDENTIARY stamp:** statuses present — {', '.join(mock_present)}. "
-            "Not a submittable SSP (R12).",
+            "Not a submittable SSP (mock evidence).",
         ])
 
     lines.extend([

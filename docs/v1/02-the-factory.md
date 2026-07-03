@@ -187,7 +187,7 @@ The demo (`cli.py demo`, see [05 · Try it](05-try-it.md)) has a
 | --- | --- | --- |
 | `all-covered` | every required control has good evidence | line runs to the end; a clean run record |
 | `gap` | a required control has **no module claiming it** | the *Order* is refused at Gate 1 (before the Factory even starts) — the line never runs |
-| `contradiction` | a control's evidence makes its oracle **fail**, yet it's still attested MET | line runs, but the conflict gets flagged later (R13 — see doc 03) |
+| `contradiction` | a control's evidence makes its oracle **fail**, yet it's still attested MET | line runs, but the conflict gets flagged later (see doc 03) |
 
 These aren't three different programs — they're the same Factory fed three
 different fact-worlds, so you can watch it behave honestly in each.

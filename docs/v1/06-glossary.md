@@ -5,6 +5,13 @@ points at where the thing lives in the code.
 
 ---
 
+### ADCS
+A prior internal project (`ADCS-lifecycle-demo`, a *satellite* requirements-
+traceability engine) whose substrate — content-addressed hashing, human
+attestation, bidirectional audit, deterministic document compilation over
+[RDF](#rdf) named graphs — this repo reuses. Mentioned only as lineage: **you do
+not need it to understand or run this repo.**
+
 ### Affirming Official
 The human who formally signs off that a control is satisfied. Only their
 [attestation](#attestation) — not a machine check — makes a control officially
@@ -53,11 +60,12 @@ Storing a file under an address that **is** a hash of its own bytes, so identica
 content always gets the same address and any change produces a different address.
 That makes tampering instantly detectable. See [SHA-256](#sha-256) and [registry](#registry).
 
-### contradiction (R13)
+### contradiction
 A red flag: a control a human marked **MET** while its machine [oracle](#oracle)
 **failed** (or was absent), with **no written override justification**. The system
 lists these separately from the score so an unexplained human-over-machine call can't
-hide. In this repo: the contradiction dimension in `traceability/audit.py`.
+hide. In this repo: the contradiction dimension in `traceability/audit.py` (referred
+to as rule "R13" in internal code comments).
 
 ### control
 One specific security requirement (e.g. "enforce multi-factor authentication"). CMMC
@@ -157,6 +165,11 @@ The banner/stamp a [BOM](#bom) or [SSP](#ssp) carries when the run is mock /
 fixture-backed. It means: this is a demonstration artifact, **not** a submittable
 compliance document. The [SSP](#ssp) cannot omit it when mock inputs are present.
 
+### NV012
+The example DoD [SBIR](#sbir) contract the demo ships with — the input the whole
+chain runs on. Its Order requires 22 of the 110 controls. In this repo:
+`fixtures/nv012/`.
+
 ### obligation
 One requirement pulled from a contract's [COP](#cop) (a data type, a deliverable, an
 overlay). The [Order Compiler](#order-compiler) resolves obligations into the set of
@@ -208,6 +221,11 @@ A content-addressed, **write-once** store where a file's [SHA-256](#sha-256) has
 address (`objects/<hash>`), plus a small index resolving `contract → BOM → artifact
 hashes`. Tampering changes the address, so it's caught immediately. In this repo:
 `pipeline/registry.py`.
+
+### SBIR
+Small Business Innovation Research — the DoD's small-business R&D contracting
+program. The demo's example contract ([NV012](#nv012)) is an SBIR topic; its
+solicitation text and Q&A are where the obligations come from.
 
 ### SHA-256
 The specific cryptographic [hash](#hash) function this engine uses (a 64-character hex

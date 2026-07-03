@@ -77,7 +77,7 @@ def test_demo_gap_stops_at_gate1(tmp_path):
 def test_demo_contradiction_reports_r13(tmp_path):
     res = _run(["demo", "--evidence-set", "contradiction"], tmp_path)
     assert res.exit_code == 0, res.output
-    assert "Contradictions (R13):" in res.output
+    assert "Contradictions (attested MET over failed machine check):" in res.output
     # A MET attestation over a failing oracle (mfa=False) → ≥1 contradiction.
     audit = json.loads((tmp_path / "audit.json").read_text())
     assert len(audit["contradictions"]) >= 1
@@ -102,7 +102,7 @@ def test_ssp_stub_when_module_absent(tmp_path, monkeypatch):
     monkeypatch.setitem(sys.modules, "documents.ssp", None)
     res = _run(["ssp"], tmp_path)
     assert res.exit_code == 0
-    assert "SSP: pending U12" in res.output
+    assert "SSP: skipped" in res.output
 
 
 def test_ssp_present_does_not_crash(tmp_path):

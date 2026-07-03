@@ -2,11 +2,20 @@
 
 > **Status:** As-built snapshot, 2026-07-02. U1–U12 + U14 committed, plus the
 > operator CLI (`cli.py`, U13a) that drives the full chain in one command. Every
-> predicate, path, and number below is taken from the committed tree or a
-> `results/agent-*.md` contract. One item is queued, not a gap: the
-> `ForwardTraceabilityShape` scope fix (it currently targets _every_ `cmmc:Control`,
-> so `verify()` over the full 110-control catalog flags out-of-scope controls — the
-> orchestrator applies the fix after the U13 acceptance test lands).
+> predicate, path, and number below is taken from the committed tree.
+>
+> **Decoder ring — the R# / U# codes.** Code docstrings and this document use
+> work-unit and requirement IDs from the (now-retired) implementation plan.
+> **R1–R13** are the thirteen requirements — defined one-per-row in the
+> [traceability table below](#requirements-traceability-r1r13). **U1–U14** are
+> the implementation work units: U1 pipeline substrate (dataset/state/runner/
+> registry) · U2 ontology build + shapes · U3 `structural/tier1.ttl` · U4
+> obligation rules (`rule_library`, `clause_library`, `obligations.ttl`) · U5
+> Order compiler + Gate 1 (`cop`, `compiler`, `gate1`) · U6 evidence
+> hashing/binding/generators · U7 oracles · U8 Factory orchestration +
+> provisioning seam · U9 attestation (Gate 2) + verification · U10 audit + SPRS
+> · U11 BOM + registry store · U12 SSP compiler (`documents/`) · U13 end-to-end
+> acceptance (U13a = the operator CLI) · U14 Terraform Tier-1 modules.
 
 ## Thesis: compliance is a provisioning artifact
 
@@ -86,7 +95,8 @@ Named graphs (`ontology/prefixes.py`): `<ce:ontology> <ce:plan> <ce:structural>
 
 ## Requirements traceability (R1–R13)
 
-The plan defines **R1–R13** (13 requirements; there is no R14 — see gaps).
+The thirteen requirements **R1–R13** are defined by this table (one intent per
+row; there is no R14).
 
 | Req     | One-line intent                                                                        | Satisfied by (unit → file)                                                                                                                        | How                                                                                                                                                                     |
 | ------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -134,7 +144,7 @@ orchestrator lands next.
 | Content-addressing                                  | **SHA-256** into a local write-once registry (GCS Tier-1 / Azure Blob Tier-2 backends). **Sigstore signing is deferred** — `hash_reference` exposes the `registry://<hash>` seam without "sign" naming.                                                                                 |
 | IL5 hosting overlay                                 | **Deferred to Phase II.** `OBL-IL5` / `IL5-OVERLAY` resolve to an **empty** control set in Phase I (Tier 1 / IL4) — tagged, not an error.                                                                                                                                               |
 | SSP / Traceability Matrix (`documents/ssp.py`, U12) | **Real and byte-stable** (deterministic fingerprint, `--check` drift gate). But it renders over the **fixture-backed (mock) evidence** above, so its output carries the **NON-EVIDENTIARY** banner — a compiled demo SSP, never a submittable one.                                      |
-| End-to-end acceptance                               | `cli.py demo` runs the full chain today (tested by `tests/test_cli.py`). The SSP step _inside_ `cli.py demo` is currently a stub hook — the SSP is produced by the standalone `documents.ssp build` over the run's `.trig`. The formal U13 acceptance test + demo-SSP wiring land next. |
+| End-to-end acceptance                               | `cli.py demo` runs the full chain today, **including the SSP step** (`[6/6 ssp]` renders `ssp.md` via `compile_ssp_from_run`); tested by `tests/test_cli.py` and the acceptance scenarios in [`docs/ACCEPTANCE.md`](ACCEPTANCE.md). The SSP can also be rendered standalone via `documents.ssp build` over the run's `.trig`. |
 
 ## Running it
 

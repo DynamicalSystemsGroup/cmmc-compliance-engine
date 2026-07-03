@@ -48,7 +48,7 @@ Real output (trimmed — the per-control MET lines are omitted):
 [4/6 audit]
 SPRS: score=110 status=Final valid_submission=True
 Proven vs attested: 4 MET-by-machine / 18 MET-by-human-only
-Contradictions (R13): 0
+Contradictions (attested MET over failed machine check): 0
 [5/6 bom] 4483673449ac… evidentiary_status=mock -> /tmp/nv012-all/bom.json
 [6/6 ssp]
 SSP: wrote /tmp/nv012-all/ssp.md (NON-EVIDENTIARY banner: present)
@@ -98,14 +98,14 @@ Real output (tail):
 [4/6 audit]
 SPRS: score=110 status=Final valid_submission=True
 Proven vs attested: 3 MET-by-machine / 19 MET-by-human-only
-Contradictions (R13): 1
+Contradictions (attested MET over failed machine check): 1
 [5/6 bom] 047ac45af023… evidentiary_status=mock -> /tmp/nv012-con/bom.json
 [6/6 ssp]
 SSP: wrote /tmp/nv012-con/ssp.md (NON-EVIDENTIARY banner: present)
 ```
 
 Exit code **0**. **What it proves:** the run *completes* and even scores 110/Final —
-**but the audit flags `Contradictions (R13): 1`** and the SSP footer says
+**but the audit flags 1 contradiction** and the SSP footer says
 `contradictions: 1`. This is the design point from [04](04-the-proof.md#1-the-audit):
 the score does not silently absorb the conflict; the MET-over-failed-oracle is
 surfaced for a human to review. A 110 here is **not** clean.

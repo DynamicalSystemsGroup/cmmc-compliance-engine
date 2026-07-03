@@ -12,8 +12,8 @@ subcommand that persists/reloads the dataset (`engine.trig`) + a small run-state
 Times are pulled from the graph/state (the Order's `ce:generatedAtTime`, threaded
 via a fixed run seed) — no `datetime.now()` reaches the written artifacts.
 
-The `ssp` step is a STUB: `documents/ssp.py` (U12) is wired at integration; when
-absent this prints "SSP: pending U12" and continues (exit 0).
+The `ssp` step renders the SSP via `documents/ssp.py`; if that module is
+unavailable it prints "SSP: skipped" and continues (exit 0).
 """
 
 from __future__ import annotations
@@ -251,7 +251,7 @@ def _do_bom(state, ds, output_dir: Path):
 
 
 def _ssp_hook(output_dir: Path, *, ds=None, audit_report=None, bom=None) -> None:
-    """Render the SSP (documents/ssp.py, U12) into `<output-dir>/ssp.md`.
+    """Render the SSP (documents/ssp.py) into `<output-dir>/ssp.md`.
 
     In the demo, `ds`/`audit_report`/`bom` come live from the run so the colophon
     carries the real SPRS line + BOM artifact hashes. Standalone (`ds is None`)
@@ -262,7 +262,7 @@ def _ssp_hook(output_dir: Path, *, ds=None, audit_report=None, bom=None) -> None
     try:
         from documents.ssp import compile_ssp_from_run
     except ImportError:
-        typer.echo("SSP: pending U12 (documents/ssp.py not yet available)")
+        typer.echo("SSP: skipped (documents/ssp.py not available)")
         return
 
     dataset_path = _engine_trig(output_dir)
@@ -371,7 +371,7 @@ def bom_cmd(output_dir: _OUT = "output") -> None:
 
 @app.command("ssp")
 def ssp_cmd(output_dir: _OUT = "output") -> None:
-    """Render the SSP from the persisted dataset (graceful skip if U12 absent)."""
+    """Render the SSP from the persisted dataset (skipped if the SSP compiler is unavailable)."""
     out = _ensure_out(output_dir)
     _ssp_hook(out)
 
@@ -383,7 +383,7 @@ def _print_audit_summary(report) -> None:
     else:
         typer.echo("SPRS: n/a (no scorable controls)")
     typer.echo(f"Proven vs attested: {report.proven.summary()}")
-    typer.echo(f"Contradictions (R13): {len(report.contradictions)}")
+    typer.echo(f"Contradictions (attested MET over failed machine check): {len(report.contradictions)}")
 
 
 # ---------------------------------------------------------------------------

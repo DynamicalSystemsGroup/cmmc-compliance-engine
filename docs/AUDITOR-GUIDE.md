@@ -130,7 +130,7 @@ report.contradictions                  # list[ContradictionRow]
 report.proven.summary()                # "N MET-by-machine / M MET-by-human-only"
 ```
 
-- **Contradiction dimension (R13).** `report.contradictions` flags every
+- **Contradictions.** `report.contradictions` flags every
   **MET-over-failed-oracle**: an `earl:passed` attestation whose backing oracle is
   `failed` (or asserted-but-absent) **and** which carries **no**
   `cmmc:overrideJustification`. Each `ContradictionRow` names the `attestation`,

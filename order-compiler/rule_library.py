@@ -78,7 +78,7 @@ class SpilloverReviewRequired(Exception):
             f"Deliverable obligation {obligation.name!r} carries dataMarker "
             f"{obligation.data_marker!r}; it may spill environment controls onto "
             f"DSG infrastructure and must not resolve to an empty set silently. "
-            f"Route to env-spillover review (R11)."
+            f"Route to environment-spillover review."
         )
 
 

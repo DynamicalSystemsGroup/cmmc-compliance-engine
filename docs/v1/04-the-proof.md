@@ -26,7 +26,7 @@ whether it's unbroken:
 
 Then it adds two things you must not skip:
 
-- **The contradiction list (R13).** A red-flag list. It catches any control a
+- **The contradiction list.** A red-flag list. It catches any control a
   human marked **MET** while the machine check for that same control **failed** —
   *unless* the human wrote down a justification for overruling the machine. An
   unexplained override is exactly the kind of thing an assessor needs to see, so
