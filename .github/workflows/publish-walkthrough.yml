@@ -35,7 +35,7 @@ jobs:
         run: uv sync --group notebook --all-groups
 
       - name: Build walkthrough (marimo export)
-        run: uv run marimo export html notebooks/compliance_walkthrough.py -o walkthrough/index.html
+        run: uv run marimo export html notebooks/compliance_walkthrough.py --no-include-code -o walkthrough/index.html
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
