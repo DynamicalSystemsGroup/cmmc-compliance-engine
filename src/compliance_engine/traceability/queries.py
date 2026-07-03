@@ -115,7 +115,7 @@ ORDER BY ?controlId
 # "|" and sort in Python for determinism).
 ATTESTATION_DETAIL = """
 SELECT ?att ?controlId ?official ?adequacy ?sufficiency ?outcomeShort ?mode
-       ?timestamp ?override ?oracleOutcome
+       ?timestamp ?override ?overrideEvidence ?oracleOutcome
        (GROUP_CONCAT(STR(?ev); separator="|") AS ?evidence) WHERE {
     ?att a ce:Attestation ;
          ce:attests ?control ;
@@ -124,6 +124,7 @@ SELECT ?att ?controlId ?official ?adequacy ?sufficiency ?outcomeShort ?mode
     OPTIONAL { ?att prov:generatedAtTime ?timestamp }
     OPTIONAL { ?att ce:attestationMode ?mode }
     OPTIONAL { ?att cmmc:overrideJustification ?override }
+    OPTIONAL { ?att ce:overrideEvidence ?overrideEvidence }
     OPTIONAL { ?att ce:oracleOutcome ?oracleOutcome }
     OPTIONAL { ?att ce:hasEvidence ?ev }
     ?att gsn:inContextOf ?adequacyNode .
@@ -135,7 +136,7 @@ SELECT ?att ?controlId ?official ?adequacy ?sufficiency ?outcomeShort ?mode
     BIND(REPLACE(STR(?outcome), "^.*[#/]", "") AS ?outcomeShort)
 }
 GROUP BY ?att ?controlId ?official ?adequacy ?sufficiency ?outcomeShort ?mode
-         ?timestamp ?override ?oracleOutcome
+         ?timestamp ?override ?overrideEvidence ?oracleOutcome
 ORDER BY ?controlId ?att
 """
 

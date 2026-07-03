@@ -53,6 +53,7 @@ def _passed_attestation(
         g.add((att, CE.oracleOutcome, EARL.failed))
     if override:
         g.add((att, CMMC.overrideJustification, Literal("risk accepted; documented")))
+        g.add((att, CE.overrideEvidence, Literal("override-evidence-artifact-hash")))
     return att
 
 

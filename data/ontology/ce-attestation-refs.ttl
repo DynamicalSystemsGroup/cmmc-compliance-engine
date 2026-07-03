@@ -165,6 +165,17 @@ ce:signerRole a owl:ObjectProperty ;
     rdfs:range ce:Role ;
     rdfs:comment "The role the attestation signer held. If this is ce:Role_AffirmingOfficial, the module's ce:attestationRole hint is bypassed." .
 
+# Attestation → the appended evidence that substantiates an override. When an
+# Affirming Official attests MET over a FAILED machine oracle, the written
+# cmmc:overrideJustification is not enough on its own: the override must also cite
+# concrete evidence (a resolvable artifact hash/URI) showing the control is
+# satisfied another way. An override justification without appended evidence is a
+# violation (OverrideEvidenceShape) and does not clear the R13 contradiction.
+ce:overrideEvidence a owl:DatatypeProperty ;
+    rdfs:label "override evidence" ;
+    rdfs:range xsd:string ;
+    rdfs:comment "Resolvable evidence (artifact hash or URI) appended to an override justification. Required whenever cmmc:overrideJustification is present." .
+
 #################################################################
 # Oracle-kind IRIs — three canonical kinds referenced by
 # cmmc:verificationMethod. Track A machine modules use oracle-config-check;

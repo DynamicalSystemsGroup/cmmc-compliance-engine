@@ -827,6 +827,8 @@ def _(attested, audit_report, bom_result, factory_ok, illustration, io_flow, mo,
                 "Control": r.control_id,
                 "Oracle": r.oracle_outcome or "—",
                 "Attestation": r.attestation_outcome or "—",
+                "Evidence backing": r.evidence_backing,
+                "Evidence": (sorted(r.evidence_hashes)[0][:12] + "…") if r.evidence_hashes else "—",
                 "Status": r.status,
             }
             for r in bom_result.control_mapping
@@ -904,7 +906,16 @@ def _(attested, audit_report, bom_result, factory_ok, illustration, io_flow, mo,
                     kind="warn",
                 ),
                 _con_block,
-                mo.md("### Per-control result (real BOM mapping)"),
+                mo.md(
+                    "### Per-control result (real BOM mapping)\n\n"
+                    "The **Evidence backing** column makes the proven-vs-attested split "
+                    "concrete per control: **machine** means the sign-off is backed by a "
+                    "passing machine oracle over resolvable evidence (the **Evidence** "
+                    "hash traces to the artifact); **human-only** means no passing machine "
+                    "measurement exists, so the control rests on human judgment; "
+                    "**override** means the human attested MET over a failed machine check "
+                    "(which must carry a written justification and appended evidence)."
+                ),
                 table(_map_rows, page_size=12),
             ]
         )

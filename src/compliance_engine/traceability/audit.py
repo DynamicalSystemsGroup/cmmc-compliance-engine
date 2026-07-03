@@ -173,24 +173,29 @@ def _addresses_pairs(ds: Graph | Dataset) -> set[tuple[str, str]]:
 def _met_attestations(ds: Graph | Dataset) -> list[dict]:
     """One row per attestation: control, outcome, oracle outcome, override, backed."""
     q = """
-    SELECT ?att ?control ?outcome ?oracle ?override ?backed WHERE {
+    SELECT ?att ?control ?outcome ?oracle ?override ?backed ?overrideEv WHERE {
         ?att a ce:Attestation ;
              ce:attests ?control ;
              ce:hasOutcome ?outcome .
         OPTIONAL { ?att ce:oracleOutcome ?oracle }
         OPTIONAL { ?att cmmc:overrideJustification ?override }
         OPTIONAL { ?att ce:backedBy ?backed }
+        OPTIONAL { ?att ce:overrideEvidence ?overrideEv }
     }
     """
     out = []
     for r in _rows(ds, q):
+        # A valid override requires BOTH a written justification AND appended
+        # evidence — a justification alone no longer clears the contradiction.
+        override_ok = r[4] is not None and r[6] is not None
         out.append({
             "att": str(r[0]),
             "control": str(r[1]),
             "control_id": _local(str(r[1])),
             "outcome": r[2],
             "oracle": r[3],
-            "override": r[4] is not None,
+            "override": override_ok,
+            "override_justification_only": r[4] is not None and r[6] is None,
             "backed": r[5] is not None,
         })
     return out

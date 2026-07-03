@@ -76,16 +76,18 @@ cmmc:PoamLegalityShape a sh:NodeShape ;
 
 # -- Contradiction (guardrail #2, R13) ----------------------------------------
 # ContradictionShape: a MET attestation (ce:attests some control with outcome
-# earl:passed) whose backing oracle assertion reports earl:failed, and which
-# carries no cmmc:overrideJustification, is a violation. Attestation may record
-# the backing outcome directly (ce:oracleOutcome) or via a linked earl:Assertion
-# (ce:backedBy … earl:outcome). Either failing path trips the shape.
+# earl:passed) whose backing oracle assertion reports earl:failed is a violation
+# UNLESS it carries BOTH a written cmmc:overrideJustification AND appended
+# ce:overrideEvidence. A justification alone no longer clears the contradiction:
+# overruling a failed machine check requires concrete, resolvable evidence.
+# Attestation may record the backing outcome directly (ce:oracleOutcome) or via a
+# linked earl:Assertion (ce:backedBy … earl:outcome). Either failing path trips it.
 # -----------------------------------------------------------------------------
 
 cmmc:ContradictionShape a sh:NodeShape ;
     sh:targetClass ce:Attestation ;
     sh:sparql [
-        sh:message "Contradiction (R13): attestation marked MET (earl:passed) but its backing oracle FAILED, with no cmmc:overrideJustification." ;
+        sh:message "Contradiction (R13): attestation marked MET (earl:passed) but its backing oracle FAILED, without BOTH a cmmc:overrideJustification and appended ce:overrideEvidence." ;
         sh:prefixes cmmc: ;
         sh:select """
             PREFIX cmmc: <http://dynamicalsystems.group/ontology/cmmc#>
@@ -100,7 +102,10 @@ cmmc:ContradictionShape a sh:NodeShape ;
                     $this ce:backedBy ?assertion .
                     ?assertion earl:outcome earl:failed .
                 }
-                FILTER NOT EXISTS { $this cmmc:overrideJustification ?j }
+                FILTER NOT EXISTS {
+                    $this cmmc:overrideJustification ?j .
+                    $this ce:overrideEvidence ?e .
+                }
             }
         """
     ] .

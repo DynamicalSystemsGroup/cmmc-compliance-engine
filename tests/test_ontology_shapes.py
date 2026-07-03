@@ -84,6 +84,8 @@ def _met_attestation(g: Graph, oracle_failed: bool, override: bool) -> URIRef:
         g.add((att, CE.oracleOutcome, EARL.failed))   # backing oracle failed
     if override:
         g.add((att, CMMC.overrideJustification, Literal("risk accepted; documented")))
+        # A valid override pairs the justification with appended evidence.
+        g.add((att, CE.overrideEvidence, Literal("override-evidence-artifact-hash")))
     return att
 
 

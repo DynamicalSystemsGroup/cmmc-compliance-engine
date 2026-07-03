@@ -30,3 +30,4 @@ results/
 # marimo local session/render cache
 notebooks/__marimo__/
 TODOs.md
+/walkthrough

@@ -89,6 +89,7 @@ def _wire_control(
         adequacy="Implementation is adequate for this control.",
         sufficiency="Evidence + passing oracle are sufficient to mark MET.",
         outcome=outcome, backing_oracle=assertion, override_justification=override,
+        override_evidence=("override-evidence-artifact-hash" if override else None),
     )
     return assertion
 

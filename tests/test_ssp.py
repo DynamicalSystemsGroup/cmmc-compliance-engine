@@ -77,6 +77,7 @@ def _add_attestation(g, att_id, control_id, outcome, official, adequacy, suffici
     g.add((suf, GSN.statement, Literal(sufficiency)))
     if override:
         g.add((att, CMMC.overrideJustification, Literal(override)))
+        g.add((att, CE.overrideEvidence, Literal("override-evidence-artifact-hash")))
     return att
 
 

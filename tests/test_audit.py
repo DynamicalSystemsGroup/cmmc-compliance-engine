@@ -67,6 +67,8 @@ def _attest(
         g.add((att, CE.oracleOutcome, oracle))
     if override:
         g.add((att, CMMC.overrideJustification, Literal(override)))
+        # A valid override carries appended evidence (R13 requires the pair).
+        g.add((att, CE.overrideEvidence, Literal("override-evidence-artifact-hash")))
     if evidence is not None:
         g.add((att, CE.hasEvidence, evidence))
     if backed:

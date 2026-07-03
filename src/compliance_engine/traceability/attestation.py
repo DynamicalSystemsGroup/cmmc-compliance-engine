@@ -101,6 +101,7 @@ def request_attestation(
     backing_oracle: URIRef | None = None,
     oracle_outcome: URIRef | None = None,
     override_justification: str | None = None,
+    override_evidence: str | None = None,
     now: str | None = None,
 ) -> URIRef:
     """Record a Gate-2 attestation for one control. Returns the attestation IRI.
@@ -204,9 +205,19 @@ def request_attestation(
     if resolved is not None:
         write.add((att_uri, CE.oracleOutcome, resolved))
 
-    # Override justification — the one thing that clears ContradictionShape.
+    # Override justification + appended evidence. An override that attests MET over
+    # a FAILED oracle must carry BOTH a written justification AND concrete appended
+    # evidence — the justification alone does not clear the R13 contradiction
+    # (OverrideEvidenceShape enforces the pairing).
     if override_justification:
+        if not override_evidence:
+            raise ValueError(
+                f"override_justification for {control_id} requires override_evidence "
+                f"(an appended, resolvable artifact hash/URI); justification alone is "
+                f"not sufficient to overrule a failed machine check."
+            )
         write.add((att_uri, CMMC.overrideJustification, Literal(override_justification)))
+        write.add((att_uri, CE.overrideEvidence, Literal(override_evidence)))
 
     # Evidence linkage: attach every ce:Evidence that addresses this control.
     for ev in query_to_dicts(ds, EVIDENCE_FOR_CONTROL % control_id):

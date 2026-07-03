@@ -79,6 +79,25 @@ class ControlMappingRow:
     attestation_outcome: str | None      # earl short name, or None
     status: str                          # MET | NOT MET | N/A | PLANNED | CANT TELL
 
+    @property
+    def evidence_backing(self) -> str:
+        """How the human attestation is backed by machine-generated evidence.
+
+          - "machine"    : a machine oracle passed and evidence is on file — the
+                           human sign-off is backed by a machine measurement that
+                           can be resolved and re-run (evidence_hashes).
+          - "override"   : attested MET while the machine oracle FAILED — the
+                           human overruled the machine (must carry an override
+                           justification + appended evidence; see R13).
+          - "human-only" : no passing machine measurement (cantTell / needsAction /
+                           inherited / none) — the sign-off rests on human judgment.
+        """
+        if self.attestation_outcome == "passed" and self.oracle_outcome == "failed":
+            return "override"
+        if self.oracle_outcome == "passed" and self.evidence_hashes:
+            return "machine"
+        return "human-only"
+
     def to_dict(self) -> dict:
         return {
             "control_id": self.control_id,
@@ -86,6 +105,7 @@ class ControlMappingRow:
             "evidence_hashes": sorted(self.evidence_hashes),
             "oracle_outcome": self.oracle_outcome,
             "attestation_outcome": self.attestation_outcome,
+            "evidence_backing": self.evidence_backing,
             "status": self.status,
         }
 
@@ -98,6 +118,7 @@ class AttestationRecord:
     role: str
     outcome: str                         # earl short name
     override_justification: str | None = None
+    override_evidence: str | None = None  # appended evidence for an override
 
     def to_dict(self) -> dict:
         return {
@@ -106,6 +127,7 @@ class AttestationRecord:
             "role": self.role,
             "outcome": self.outcome,
             "override_justification": self.override_justification,
+            "override_evidence": self.override_evidence,
         }
 
 
@@ -226,6 +248,7 @@ def _attestation_outcomes(ds: Dataset) -> dict[str, dict]:
             "outcome": row.get("outcomeShort"),
             "official": row.get("official") or "",
             "override": row.get("override"),
+            "override_evidence": row.get("overrideEvidence"),
         }
     return out
 
@@ -308,6 +331,7 @@ def build_bom(
             role="Affirming Official",
             outcome=info["outcome"] or "",
             override_justification=info["override"],
+            override_evidence=info.get("override_evidence"),
         ))
 
     bom = BOM(

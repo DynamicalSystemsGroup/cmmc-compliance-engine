@@ -235,7 +235,7 @@ class TestContradictionMetOverFailedOracle:
         ds, _order, _state = self._run_to_contradiction()
         assert len(auditmod.audit(ds).contradictions) == 1
 
-        # The AO records an override justification → contradiction cleared.
+        # The AO records an override justification + appended evidence → cleared.
         request_attestation(
             ds, self._CTRL, "Jane Official", auto_attest=True,
             adequacy="Compensating control asserted.", sufficiency="Deemed MET.",
@@ -243,6 +243,7 @@ class TestContradictionMetOverFailedOracle:
             backing_oracle=CE["oracle-mfa-2sv"], oracle_outcome=OUTCOME_FAILED,
             override_justification="AO override: phishing-resistant MFA enforced "
                                    "via compensating IdP policy; ticket SEC-4471.",
+            override_evidence="artifact-sha256:idp-policy-export; ticket SEC-4471",
         )
         report = auditmod.audit(ds)
         assert report.contradictions == []
