@@ -1,4 +1,4 @@
-"""Tests for the SPRS scorer + catalog-backed loader (U10 SPRS half).
+"""Tests for the SPRS scorer + catalog-backed loader.
 
 SPRS (32 CFR §170.21/170.24): score = 110 − Σ(weight of non-MET).
   110      → Final;  88..109 → Conditional (POA&M);  <88 → Ineligible.

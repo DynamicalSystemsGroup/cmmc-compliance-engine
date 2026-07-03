@@ -1,4 +1,4 @@
-"""U1 — P-PLAN step model + per-stage activity emission.
+"""P-PLAN step model + per-stage activity emission.
 
 Adapted from the ADCS test_plan_execution.py. The ADCS version drove a
 full `run_pipeline()`; here (substrate spine only) we emit activities

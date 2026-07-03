@@ -1,10 +1,10 @@
-"""BOM assembly + hash-reference into the registry (U11b).
+"""BOM assembly + hash-reference into the registry.
 
 "Compliance is a provisioning artifact." The BOM (Bill of Materials) is the
-byproduct of a Factory run that IS the compliance proof — and the SSP's source
-(U12). It is assembled **wholesale** from a finalized `PipelineState` (U8) plus
-the Gate-2 attestations graph (U9), content-addressed (SHA-256), and stored
-**write-once** in the registry (U11a) with the two-level index.
+byproduct of a Factory run that IS the compliance proof — and the SSP's source.
+It is assembled **wholesale** from a finalized `PipelineState` plus
+the Gate-2 attestations graph, content-addressed (SHA-256), and stored
+**write-once** in the registry with the two-level index.
 
 Design invariants:
   * status is driven by the **attestation** outcome — a control is MET only when
@@ -177,7 +177,7 @@ class BOM:
         """`registry://<bom_hash>` — the (unsigned) content reference seam."""
         return registry.hash_reference(self.bom_hash)
 
-    # -- RDF view (for graph consumers; U12 may also read the dict) -----------
+    # -- RDF view (for graph consumers; SSP compiler may also read the dict) -----------
     def to_rdf(self, graph: Graph | None = None) -> Graph:
         g = graph if graph is not None else Graph()
         bom = CE[f"BOM/{self.bom_hash}"]

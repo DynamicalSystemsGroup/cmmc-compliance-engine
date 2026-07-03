@@ -1,7 +1,7 @@
-"""U8 — TerraformBackend mechanism against a self-contained HCL fixture.
+"""TerraformBackend mechanism tests against a self-contained HCL fixture.
 
 Marked @pytest.mark.terraform and skipped if the binary is absent. Points the
-backend at tests/fixtures/tf_min/ (NOT terraform/tier1/, which U14 owns). Run:
+backend at tests/fixtures/tf_min/ (NOT terraform/tier1/). Run:
 
     uv run pytest -m terraform tests/test_terraform_backend.py -q
 """

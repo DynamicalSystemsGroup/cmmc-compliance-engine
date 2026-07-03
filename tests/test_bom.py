@@ -1,4 +1,4 @@
-"""U11b — BOM assembly + hash-reference into the registry."""
+"""BOM assembly + hash-reference into the registry."""
 
 import sys
 from pathlib import Path

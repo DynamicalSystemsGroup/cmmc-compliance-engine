@@ -14,7 +14,7 @@ It REFUSES to emit an Order when:
 
 The emitted Order is content-addressed: it carries a hash of each included
 module, the resolved control set, the COP, and a coverage-proof — plus a single
-`ce:orderHash` over all of them, so U8 (the Factory) can load the Order and
+`ce:orderHash` over all of them, so the Factory can load the Order and
 verify it byte-for-byte before executing.
 """
 
@@ -248,7 +248,7 @@ def _default_scope(obligations, markers) -> dict:
 
 
 def _emit_order(ds: Dataset, order: Order, att: COPAttestation, *, now=None) -> None:
-    """Serialize the Order as RDF into `<ce:order>` so U8 can load + verify it."""
+    """Serialize the Order as RDF into `<ce:order>` so the Factory can load + verify it."""
     g = graph_for(ds, "order")
     o = order.iri
     stamp = now or datetime.now(timezone.utc).isoformat()

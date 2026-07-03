@@ -12,7 +12,7 @@ list of `PlannedResource`s. Each planned resource has a **stable `resource_id`**
 that is the join key across the whole back-half:
   (a) it matches a `structural/tier1.ttl` module local-name,
   (b) evidence artifacts reference it,
-  (c) it appears in the BOM control-mapping (U11).
+  (c) it appears in the BOM control-mapping.
 """
 
 from __future__ import annotations

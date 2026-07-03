@@ -1,4 +1,4 @@
-"""U13a — operator CLI driver (the one-command NV012 demo)."""
+"""Operator CLI driver (the one-command NV012 demo)."""
 
 import json
 import sys

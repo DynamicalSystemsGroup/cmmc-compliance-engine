@@ -1,4 +1,4 @@
-"""U9 — Gate-2 attestation onto GSN nodes (ported from ADCS test_attestation_gsn).
+"""Gate-2 attestation onto GSN nodes (ported from ADCS test_attestation_gsn).
 
 Confirms request_attestation emits a well-formed ce:Attestation: ce:attests +
 adequacy gsn:Assumption + sufficiency gsn:Justification + prov:qualifiedAssociation
@@ -29,7 +29,7 @@ _CONTROL = "IA.L2-3.5.3"
 
 
 def _fixture_with_oracle(outcome_summary: dict) -> tuple[Dataset, URIRef]:
-    """Dataset with one U7 ControlCheckAssertion in <ce:audit>. Returns (ds, assertion)."""
+    """Dataset with one ce:ControlCheckAssertion in <ce:audit>. Returns (ds, assertion)."""
     ds = Dataset(default_union=True)
     result = evaluate(outcome_summary, _CONTROL)
     evidence = CE["evidence/EV-mfa"]
@@ -112,7 +112,7 @@ def test_qualified_association_affirming_official():
 def test_backing_oracle_link():
     ds, att, assertion = _attest_met()
     g = _att_graph(ds)
-    # provenance pointer to the U7 assertion + the resolved oracle outcome
+    # provenance pointer to the oracle assertion + the resolved oracle outcome
     assert (att, CE.backedBy, assertion) in g
     assert list(g.objects(att, CE.oracleOutcome)) == [EARL.passed]
 

@@ -1,4 +1,4 @@
-"""Tests for the plan-time Terraform evidence generator (U14).
+"""Tests for the plan-time Terraform evidence generator.
 
 terraform-invoking tests are marked ``@pytest.mark.terraform`` AND skipped when
 the binary is absent, so the suite stays green on machines without terraform.
@@ -109,7 +109,7 @@ class TestGeneratorBindsEvidence:
             assert a.summary["module"] in modules  # resource_id resolves to tier1.ttl
             addressed |= set(a.controls)
 
-        # Spot-check the plan covers the key control families (U14 approach).
+        # Spot-check the plan covers the key control families.
         for expected in ["CM.L2-3.4.1", "SC.L2-3.13.1", "SC.L2-3.13.11",
                          "AU.L2-3.3.1", "AC.L2-3.1.1"]:
             assert expected in addressed, f"{expected} not addressed by plan evidence"
@@ -117,7 +117,7 @@ class TestGeneratorBindsEvidence:
         # Inherited PE controls are NOT machine-provable at plan time → excluded.
         assert "PE.L2-3.10.1" not in addressed
 
-        # Bind into an RDF graph via the U6 layer and confirm the edges.
+        # Bind into an RDF graph via the evidence layer and confirm the edges.
         g = _new_graph()
         iris = gen.bind(g, artifacts=artifacts)
         assert len(iris) == len(artifacts)

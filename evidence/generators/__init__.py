@@ -9,7 +9,8 @@ Each generator honors the contract in ``evidence/DESIGN.md``:
 This module is the **live-tenant config-export path** (MFA / region / FIPS /
 at-rest / IAM). It stays **fixture-backed** (``fixtures/nv012/<set>/``) until a
 real cloud exists — every artifact is flagged ``evidentiary_status="mock"``
-(R12). The plan-time Terraform/OPA evidence path is a separate unit (U14).
+(R12). The plan-time Terraform/OPA evidence path lives in
+``evidence/generators/terraform_plan.py``.
 """
 
 from __future__ import annotations
@@ -23,7 +24,7 @@ from evidence.binding import CollectionMetadata
 # Repo-root/fixtures/nv012 — generators/__init__.py → generators → evidence → root.
 _DEFAULT_FIXTURES_ROOT = Path(__file__).resolve().parents[2] / "fixtures" / "nv012"
 
-# The three labelled fixture sets seeded in U6a (see fixtures/nv012/README.md).
+# The three labelled fixture sets (see fixtures/nv012/README.md).
 FIXTURE_SETS = ("all-covered", "gap", "contradiction")
 
 

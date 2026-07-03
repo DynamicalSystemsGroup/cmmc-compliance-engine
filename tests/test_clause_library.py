@@ -1,4 +1,4 @@
-"""U4 — clause_library authoring-time COP completeness check."""
+"""clause_library authoring-time COP completeness check."""
 import sys
 from pathlib import Path
 

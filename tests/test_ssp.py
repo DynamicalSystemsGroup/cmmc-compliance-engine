@@ -1,4 +1,4 @@
-"""Tests for the SSP + Traceability Matrix compiler (U12a).
+"""Tests for the SSP + Traceability Matrix compiler.
 
 Ported from ADCS `test_design_description.py`: byte-stability, data-derived
 document date, the drift gate, plus the CMMC-specific VCRM column set and the
@@ -249,7 +249,7 @@ class TestCliDriftGate:
 
 
 # --------------------------------------------------------------------------- #
-# U12b — real audit + BOM colophon wiring
+# Real audit + BOM colophon wiring
 # --------------------------------------------------------------------------- #
 
 def _synthetic_audit(sprs_result, *, machine, human, contradictions=()):

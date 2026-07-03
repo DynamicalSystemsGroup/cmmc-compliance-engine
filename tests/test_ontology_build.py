@@ -1,4 +1,4 @@
-"""U2-build — the ontology build pipeline (offline, deterministic, budget-gated)."""
+"""The ontology build pipeline (offline, deterministic, budget-gated)."""
 from __future__ import annotations
 
 import json

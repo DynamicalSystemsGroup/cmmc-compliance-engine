@@ -1,4 +1,4 @@
-"""Clause -> forced-obligation completeness check (U4, AUTHORING-TIME ONLY).
+"""Clause -> forced-obligation completeness check (AUTHORING-TIME ONLY).
 
 This module supports step B of the Order Compiler (COP extraction). When a
 contract cites a DFARS/ITAR clause, that clause *forces* the presence of certain

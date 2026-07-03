@@ -1,4 +1,4 @@
-"""Tests for the content-addressed write-once registry (U11a).
+"""Tests for the content-addressed write-once registry.
 
 Covers: round-trip, idempotent put, write-once/tamper detection, the two-level
 index (contract → latest BOM → artifact hashes), deterministic index

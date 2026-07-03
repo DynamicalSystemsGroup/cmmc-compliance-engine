@@ -1,4 +1,4 @@
-"""Tests for the CMMC control-check oracle (U7).
+"""Tests for the CMMC control-check oracle.
 
 Ported from ADCS-lifecycle-demo/tests/test_oracle.py. Covers the pure evaluation
 logic (oracles.criteria.evaluate) and the EARL emitter (oracles.assertion). A

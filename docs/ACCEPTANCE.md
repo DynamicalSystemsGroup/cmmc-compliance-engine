@@ -61,7 +61,7 @@ All four hold. No traceability claim failed spot-check.
 ## 5. Defects
 
 **None found.** The full suite is green, all three scenarios behave to the plan's
-U13 acceptance criteria, and the four R spot-checks hold against the cited code.
+end-to-end acceptance criteria, and the four R spot-checks hold against the cited code.
 
 ## 6. Verdict — **GO**
 

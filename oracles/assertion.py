@@ -12,7 +12,7 @@ Discipline (R4/R9):
   * earl:mode is ALWAYS earl:automatic — verification, never human validation.
   * The assertion `ce:evaluatesAgainst` the cmmc:Control it checked.
   * It NEVER uses `ce:attests` — that predicate is reserved for the human
-    ce:Attestation (U9). The oracle verifies a config-level claim; only an
+    ce:Attestation (Gate 2). The oracle verifies a config-level claim; only an
     attestation connects evidence to a control being MET. A regression test
     (tests/test_oracles.py) guards this.
 

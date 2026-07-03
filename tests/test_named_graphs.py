@@ -1,4 +1,4 @@
-"""U1 — named-graph dataset layout + TriG round-trip.
+"""Named-graph dataset layout + TriG round-trip.
 
 Adapted from the ADCS test_named_graphs.py. The ADCS version drove a full
 `run_pipeline()`; here (substrate spine only) we populate the eight named
@@ -107,7 +107,7 @@ def test_writes_route_to_correct_named_graph(populated):
 
 def test_eight_graph_dataset_round_trips_trig(populated, tmp_path):
     """Export the 8-graph dataset as TriG, re-parse, assert identical
-    per-graph counts. This is the core U1 round-trip scenario."""
+    per-graph counts."""
     before = _per_graph_quad_counts(populated)
     assert len(before) == 8, f"expected 8 populated graphs, got {len(before)}"
 

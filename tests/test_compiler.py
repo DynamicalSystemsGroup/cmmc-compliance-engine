@@ -1,4 +1,4 @@
-"""U5 — Order compiler: refuse-first (Gate 1 / unattested) then happy path.
+"""Order compiler tests: refuse-first (Gate 1 / unattested) then happy path.
 
 Per the plan's execution note, gap-detection is proven BEFORE the happy path.
 """

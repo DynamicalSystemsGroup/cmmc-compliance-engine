@@ -1,4 +1,4 @@
-"""U2-build — data-integrity / size invariants over the built cmmc.ttl."""
+"""Data-integrity / size invariants over the built cmmc.ttl."""
 from __future__ import annotations
 
 from pathlib import Path

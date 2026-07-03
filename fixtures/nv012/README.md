@@ -1,8 +1,8 @@
 # `fixtures/nv012/` — mocked evidence exports for the NV012 run
 
 These JSON files stand in for **real GCP / Google Workspace config exports**.
-The mocked generators (`evidence/generators/*`, U6) read them and emit
-`EvidenceArtifact`s; the oracles (`oracles/criteria.py`, U7) read each file's
+The mocked generators (`evidence/generators/*`) read them and emit
+`EvidenceArtifact`s; the oracles (`oracles/criteria.py`) read each file's
 `summary` dict and compare it to a machine criterion. Every artifact is marked
 `evidentiary_status: "mock"` — it **addresses** a control but is **not** real
 evidence (R12 non-evidentiary marker).
@@ -21,8 +21,8 @@ evidence (R12 non-evidentiary marker).
 | `summary`            | object   | **machine-readable** metrics the oracle reads (schema below)    |
 
 The `source_system`, `export_command`, `collected_at`, and `collector_version`
-fields map onto U6's `CollectionMetadata {source_system, export_command,
-collected_at, collector_version}`.
+fields map onto `CollectionMetadata {source_system, export_command,
+collected_at, collector_version}` in `evidence/binding.py`.
 
 ## `summary` schema (keys = oracle `metric_key`s in `oracles/criteria.py`)
 
@@ -39,10 +39,10 @@ generator run unions them into the per-control evidence summary.
 
 ## The three labelled sets
 
-| Set              | Files                                                         | Purpose (U13)                                                                                                                                                                                                                                                                                                                                                                                      |
+| Set              | Files                                                         | Purpose                                                                                                                                                                                                                                                                                                                                                                                      |
 | ---------------- | ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `all-covered/`   | all 5 exports, **every criterion passes**                     | happy path — Gate 1 passes, Factory completes, **SPRS 110/Final** (mock-marked).                                                                                                                                                                                                                                                                                                                   |
-| `gap/`           | 4 exports — **omits `gcp_kms_cmvp.json`** (the FIPS evidence) | at the **Factory/oracle** layer: with no FIPS export the `fips_module_present` metric is absent → the `SC.L2-3.13.11` oracle returns `cantTell`/absent (missing-evidence gap). NB: `SC.L2-3.13.11` still has a claiming tier1 module (`CMEK_KeyRing`), so this set does **not** by itself trip **Gate 1** — Gate 1 is a _planning_ check on module coverage, not evidence. See the U13 note below. |
+| `gap/`           | 4 exports — **omits `gcp_kms_cmvp.json`** (the FIPS evidence) | at the **Factory/oracle** layer: with no FIPS export the `fips_module_present` metric is absent → the `SC.L2-3.13.11` oracle returns `cantTell`/absent (missing-evidence gap). NB: `SC.L2-3.13.11` still has a claiming tier1 module (`CMEK_KeyRing`), so this set does **not** by itself trip **Gate 1** — Gate 1 is a _planning_ check on module coverage, not evidence. See the note below. |
 | `contradiction/` | all 5 exports, but `mfa_enforced_privileged: false`           | oracle for `IA.L2-3.5.3` **fails**; when the Affirming Official attests MET the audit's contradiction dimension fires (**MET-over-failed-oracle**, R13).                                                                                                                                                                                                                                           |
 
 ### Set file inventory
@@ -54,7 +54,7 @@ generator run unions them into the per-control evidence summary.
 - **`contradiction/`**: same five as `all-covered/`, with the MFA export patched
   so `mfa_enforced_privileged: false` (oracle `failed`).
 
-## End-to-end (U13) — expected end-states (`tests/test_nv012_e2e.py`)
+## End-to-end — expected end-states (`tests/test_nv012_e2e.py`)
 
 The acceptance test drives the whole chain (compile → Gate 1 → Factory →
 attest → audit → SPRS → BOM → SSP) programmatically and asserts:

@@ -1,4 +1,4 @@
-"""U10 — bidirectional audit + R13 contradiction dimension + SPRS wiring.
+"""Bidirectional audit + contradiction dimension + SPRS wiring.
 
 Built on synthetic fixture graphs (order + attestations + evidence + tier1-style
 module claims + a catalog Graph for SPRS). Ports the ADCS three-failure-mode

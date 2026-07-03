@@ -1,4 +1,4 @@
-"""U2 (part A) — CMMC ontology TTL parse + closure invariants.
+"""CMMC ontology TTL parse + closure invariants.
 
 rdflib-only: does NOT import agent-1's modules. Validates that the hand-authored
 Document-1 encoding and SHACL shapes parse and carry the required structure.

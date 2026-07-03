@@ -1,4 +1,4 @@
-"""U4 — rule_library obligation -> control resolution + spillover guard."""
+"""rule_library obligation -> control resolution + spillover guard."""
 import sys
 from pathlib import Path
 

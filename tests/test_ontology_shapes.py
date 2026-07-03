@@ -1,4 +1,4 @@
-"""U2-build — SHACL negative-shape tests for the two guardrails (U2 R13/POA&M).
+"""SHACL negative-shape tests for the two guardrails (contradiction / POA&M).
 
 Constructs tiny in-memory data graphs and validates them against
 ontology/cmmc_shapes.ttl with pyshacl (advanced=True for the SPARQL-based

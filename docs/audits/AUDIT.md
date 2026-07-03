@@ -14,7 +14,7 @@ The problem is **routing and rot, not writing**. Specifically:
 
 1. **The front door hides the good material.** `docs/v1/README.md` says "Start here" — and nothing in the repo links to it. `grep -rn "docs/v1" README.md ARCHITECTURE.md ROADMAP.md` returns zero hits. A newcomer lands on `README.md:5` ("a signed BOM that doubles as the SSP" — neither acronym defined) and bounces.
 2. **The layer newcomers reach for first is the least trustworthy.** All 10 per-module `DESIGN.md` files are frozen pre-implementation port plans: they call fully-built modules "stubs," name functions and files that don't exist, and use a retired `rtm:` vocabulary.
-3. **Internal plan codenames (R13, U12, U1–U14) leak into user-facing docs, CLI help, and program output**, and the plan document that defined them was deleted on this branch.
+3. **Internal plan codenames (R13 and the work-unit identifiers) leaked into user-facing docs, CLI help, and program output**, and the plan document that defined them was deleted on this branch.
 
 Time-to-mental-model via the intended path (docs/v1 → run the demo): **~45–60 minutes.** Via the actual front door today: **3+ hours with backtracking**, with a real risk the reader wrongly concludes they must first study CMMC and a sibling repo (ADCS) that isn't even in this repo.
 
@@ -40,11 +40,11 @@ Time-to-mental-model via the intended path (docs/v1 → run the demo): **~45–6
 **F4. ADCS is load-bearing and never explained.** Two README sections (`README.md:52-60`) and five spots in ARCHITECTURE.md lean on "the ADCS substrate." ADCS is never expanded, is not in the glossary, and the link `../ADCS-lifecycle-demo` points outside the repo — dead for anyone who clones only this one. A newcomer cannot tell whether they must read that other repo first (they don't).
 *Fix:* one sentence: "ADCS-lifecycle-demo is a prior internal project (satellite requirements traceability) whose engine this repo reuses; you don't need it to understand or run this repo."
 
-**F5. Internal plan codenames leak everywhere, and their defining document is deleted.** R1–R13 / U1–U14 appear ~70+ times: in README (`:93,114,124,133,140,151,156`), docs/v1/05 output, module docstrings, CLI `--help` ("graceful skip if U12 absent"), and even **program output** (`Contradictions (R13): 1`). The plan that defined them (`docs/plans/2026-07-02-001-…`) is deleted on this branch; `docs/AS-BUILT.md:89` still says "The plan defines R1–R13," pointing at nothing, and `AS-BUILT.md:6` cites a `results/agent-*.md` directory that doesn't exist.
-*Fix:* user-facing text and program output say the plain name ("unjustified human-over-machine contradiction" instead of "R13"); add a 15-line R#/U# legend to AS-BUILT; strip "U12" from CLI help.
+**F5. Internal plan codenames leaked everywhere, and their defining document was deleted.** Requirement codes (R1–R13) and work-unit codes appeared ~70+ times: in README, docs/v1/05 output, module docstrings, CLI `--help`, and even **program output** (`Contradictions (R13): 1`). The plan that defined the work-unit codes was deleted on this branch; `docs/AS-BUILT.md` still said "The plan defines R1–R13" pointing at nothing.
+*Fix (done):* user-facing text and program output now say the plain name ("attested MET over failed machine check" instead of the internal code); work-unit identifiers stripped from CLI help and all docstrings; R# decoder ring added inline to AS-BUILT.
 
 **F6. Status docs contradict each other and the code.** `docs/AS-BUILT.md:137` says the demo's SSP step "is currently a stub hook"; `cli.py:253-279` renders the real SSP every run (verified live), and same-day `docs/ACCEPTANCE.md:26` says the opposite ("SSP wiring has landed — not a stub"). `AS-BUILT.md:6-9` describes a SHACL shape fix as "queued" that is already in `ontology/cmmc_shapes.ttl:298-307`. README's artifact table (`:137-143`) omits `ssp.md`, which the demo writes. ROADMAP.md has every checkbox unchecked, including shipped, acceptance-verified items — while README:91 says "Runnable. The full chain is implemented and tested." Two contradicting status docs kill trust in both.
-*Fix:* update AS-BUILT's two stale claims, add `ssp.md` to the README table, delete the U12 caveat at `README.md:156`, check off ROADMAP items that shipped.
+*Fix:* update AS-BUILT's two stale claims, add `ssp.md` to the README table, remove the stale SSP caveat from `README.md`, check off ROADMAP items that shipped.
 
 **F7. README/ARCHITECTURE overstate the storage backends.** `README.md:80` repo map: "`backends/` — Tiered write-once registry: GCS (Tier 1), Azure Blob (Tier 2)." Reality: top-level `backends/` contains **only a DESIGN.md**; the only backend code is `pipeline/backends/{base,local}.py`; no GCS/Azure backend exists anywhere (grep-verified). `ARCHITECTURE.md:132` colors the "GCSBackend" node **green = runs today**.
 *Fix:* README row → "write-once registry (local today; GCS/Azure planned)"; recolor the diagram node amber; delete the top-level `backends/` directory (fold its tier table into `pipeline/registry.py`'s docstring or ROADMAP).
@@ -87,7 +87,7 @@ Time-to-mental-model via the intended path (docs/v1 → run the demo): **~45–6
 
 The domain forces: the RDF named-graph substrate (the audit/BOM/SSP are *views over the graph* — traceability is the product), EARL/PROV/GSN for auditor-facing records, the compiler/factory seam with independent hash re-verification, the two-gate refusal design, the machine-informs/human-attests split, content-addressed storage. **Keep all of it.**
 
-The implementation added: the sys.path import hack (F9), the never-executed plan.ttl + triple stage-list (F10), triple run-state bookkeeping (F14), the dead `StoreBackend` shell + doc-only top-level `backends/` (F7, F13), test-only "runtime" modules (F15), duplicate helpers and a 4×-copied module→control mapping (F16), and the R#/U# vocabulary tax (F5). Removing it all ≈ **~400–500 lines (~7%) and one directory**, but the real win is flatness: representations a newcomer must hold drops from ~10 to ~6.
+The implementation added: the sys.path import hack (F9), the never-executed plan.ttl + triple stage-list (F10), triple run-state bookkeeping (F14), the dead `StoreBackend` shell + doc-only top-level `backends/` (F7, F13), test-only "runtime" modules (F15), duplicate helpers and a 4×-copied module→control mapping (F16), and the internal codename vocabulary tax (F5). Removing it all ≈ **~400–500 lines (~7%) and one directory**, but the real win is flatness: representations a newcomer must hold drops from ~10 to ~6.
 
 **Change-cost reality check** ("add one new machine-checked control"): 5–8 files across four representation layers, with the module→control mapping hand-written up to four times. The layers are essential (law / topology / check / evidence have different owners); two of the four mapping copies are not.
 
@@ -98,7 +98,7 @@ The implementation added: the sys.path import hack (F9), the never-executed plan
 1. **Route the front door** (~30 min, F1+F3): "Start here → docs/v1" banner atop README; a 5-line Documentation section routing by audience; glossary link under the diagram; define NV012, BOM, SSP, SBIR at first use; the one-sentence ADCS disclaimer (F4).
 2. **Quarantine the DESIGN.md layer** (~30 min, F2): one warning banner in each of the 10 files pointing to AS-BUILT — or just delete them.
 3. **Fix the self-contradictions** (~1 hr, F6+F8): AS-BUILT's SSP-stub and shape-fix claims; the Gate 2/3 mislabel in ARCHITECTURE's diagram; add `ssp.md` to README's artifact table; check off shipped ROADMAP items.
-4. **De-jargon user-facing output** (~1 hr, F5): "Contradictions (R13)" → plain name in program output and README; strip U12 from CLI help; add the R#/U# legend to AS-BUILT.
+4. **De-jargon user-facing output** (~1 hr, F5): "Contradictions (R13)" → plain name in program output and README; strip internal work-unit codes from CLI help and docstrings; add the R# decoder ring to AS-BUILT.
 5. **Correct the backend overstatement** (~15 min, F7): README repo-map row + ARCHITECTURE node color; delete top-level `backends/`.
 
 Post-presentation (code, ~1–2 days when convenient): rename `order-compiler/` → `order_compiler/` (F9); load plan.ttl at runtime or demote it (F10); one-sentence auto-attest disclosure in audit.md's header (F11); collapse duplicate helpers (F16).

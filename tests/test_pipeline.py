@@ -1,4 +1,4 @@
-"""U8 — Factory orchestrator (FakeProvisionBackend; deterministic, no terraform).
+"""Factory orchestrator tests (FakeProvisionBackend; deterministic, no terraform).
 
 Refuse-first: the safety-valve test is written first so a non-compliant plan is
 proven to HALT before Apply before any happy path.
@@ -109,7 +109,7 @@ def test_each_stage_emits_one_plan_activity():
 
 
 def test_no_bom_built_by_factory():
-    """The Factory collects raw results only — no BOM (U11)."""
+    """The Factory collects raw results only — BOM assembly is a separate post-step."""
     ds, order = _attested_order_ds()
     state = run_factory(
         ds, order.iri, provision_backend=FakeProvisionBackend(),
@@ -122,7 +122,7 @@ def test_no_bom_built_by_factory():
 
 
 # ---------------------------------------------------------------------------
-# Order verification (reuses the U5 hash recipe, independently)
+# Order verification (reuses the compiler hash recipe, independently)
 # ---------------------------------------------------------------------------
 
 def test_tampered_module_definition_refused_at_fetch():

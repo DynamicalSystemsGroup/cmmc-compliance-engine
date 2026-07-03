@@ -1,4 +1,4 @@
-"""U5 — Gate 1 planning-coverage audit (forward / backward / no-paper-claim)."""
+"""Gate 1 planning-coverage audit (forward / backward / no-paper-claim)."""
 
 import sys
 from pathlib import Path

@@ -1,9 +1,9 @@
-"""Tests for the mocked evidence generators (U6b).
+"""Tests for the mocked evidence generators.
 
 A generator reads ``fixtures/nv012/<set>/*.json`` and yields ``EvidenceArtifact``s
 whose ``summary`` keys match ``oracles/criteria.py`` metric_keys and whose
-``controls`` name the addressed controls. The three fixture sets drive the U13
-happy path / gap / contradiction cases.
+``controls`` name the addressed controls. The three fixture sets drive the
+happy path / gap / contradiction end-to-end scenarios.
 """
 
 from __future__ import annotations

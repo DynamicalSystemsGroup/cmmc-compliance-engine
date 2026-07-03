@@ -1,4 +1,4 @@
-"""U13 — NV012 end-to-end acceptance characterization (the capstone).
+"""NV012 end-to-end acceptance characterization (the capstone).
 
 Drives the whole chain programmatically (NOT via cli.py) through the committed
 entry points, proving three end-states:

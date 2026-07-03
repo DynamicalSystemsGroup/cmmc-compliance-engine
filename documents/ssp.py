@@ -14,7 +14,7 @@ R12: if the dataset carries ANY ``ce:evidentiaryStatus`` of ``mock`` / ``mock-pl
 a NON-EVIDENTIARY banner is emitted at the top AND stamped in the colophon. The
 compiler cannot emit the document without it while mock status is present.
 
-Hooks wired at integration (U10 audit + U11 BOM, next round): ``sprs_summary``
+Hooks wired at integration (audit + BOM): ``sprs_summary``
 and ``bom_artifact_hashes`` default to ``None`` and render "pending" / fall back
 to the committed ``ce:contentHash`` values respectively.
 """
@@ -206,7 +206,7 @@ def compile_ssp(
 ) -> str:
     """Compile the SSP + Traceability Matrix as byte-stable Markdown.
 
-    ``sprs_summary`` / ``bom_artifact_hashes`` are the U10-audit / U11-BOM hooks:
+    ``sprs_summary`` / ``bom_artifact_hashes`` are the audit / BOM hooks:
     when ``None`` they render "pending" / fall back to the committed evidence
     ``ce:contentHash`` values.
     """
@@ -349,7 +349,7 @@ def compile_ssp(
         [[layer, f"`{iri}`", str(n)] for layer, iri, n in counts],
     ))
 
-    # SPRS summary hook (U10-audit + U11-BOM).
+    # SPRS summary hook (audit + BOM colophon).
     if sprs_summary is None:
         sprs_line = "SPRS summary: pending audit (no audit report supplied)."
     else:
@@ -404,13 +404,13 @@ def compile_ssp(
 
 
 # ---------------------------------------------------------------------------
-# Run integration — wire the colophon to the real audit (U10) + BOM (U11b)
+# Run integration — wire the colophon to the real audit + BOM
 # ---------------------------------------------------------------------------
 
 def sprs_summary_from_audit(report: "AuditReport | None") -> SprsSummary | None:
     """Build the colophon SPRS summary from an audit report.
 
-    ``score``/``status`` come from ``report.sprs`` (the U10-sprs ``SprsResult``);
+    ``score``/``status`` come from ``report.sprs`` (the ``SprsResult``);
     ``met_by_machine``/``met_by_human_only`` from ``report.proven`` (the
     proven-vs-attested split); ``contradiction_count`` = ``len(report.contradictions)``.
     Returns ``None`` when no report is given or the audit produced no SPRS score
@@ -436,11 +436,11 @@ def compile_ssp_from_run(
 ) -> str:
     """Compile the SSP with the real audit + BOM colophon when available.
 
-    The entry point for ``cli.py`` (agent-1) and the U13 e2e run: derives
+    The entry point for ``cli.py`` and the end-to-end run: derives
     ``sprs_summary`` from ``audit_report`` and ``bom_artifact_hashes`` from
     ``bom.artifact_hashes()``, then delegates to :func:`compile_ssp`. When both
-    are ``None`` the output is identical to the U12a fallback ("pending" SPRS +
-    committed ``ce:contentHash`` values); the R12 banner is unaffected either way.
+    are ``None`` the output renders "pending" SPRS + committed ``ce:contentHash``
+    values; the R12 banner is unaffected either way.
     """
     return compile_ssp(
         ds,

@@ -1,8 +1,8 @@
-"""U3 — Tier 1 structural model (module ↔ control allocation).
+"""Tier 1 structural model tests (module ↔ control allocation).
 
 Loads the control catalog (`ontology/cmmc-edit.ttl`, <ce:ontology>) and the
 structural model (`structural/tier1.ttl`, <ce:structural>) into one named-graph
-Dataset (the U1 substrate) and asserts:
+Dataset and asserts:
 
   - tier1.ttl parses.
   - Referential integrity: every `cmmc:controlsSatisfied` / satisfy-edge

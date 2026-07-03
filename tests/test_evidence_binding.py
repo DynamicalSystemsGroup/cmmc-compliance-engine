@@ -1,4 +1,4 @@
-"""Tests for evidence binding (U6b).
+"""Tests for evidence binding.
 
 Evidence **addresses** a control, it never **attests** one — that core-principle
 regression is asserted here (no ``ce:attests`` triple is ever emitted). Also

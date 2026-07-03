@@ -5,7 +5,7 @@ subset as ``ce:PolicyCheck`` evidence (the OPA/Checkov/Trivy analogue): a
 pass/fail check result derived from the fixture's machine-readable ``summary``.
 
 It deliberately **overlaps** :class:`MockConfigExportGenerator` on
-``AC.L2-3.1.1`` (IAM) so U6's coverage query sees two independent generators
+``AC.L2-3.1.1`` (IAM) so the coverage query sees two independent generators
 addressing one control. Every artifact is ``evidentiary_status="mock"`` (R12).
 """
 

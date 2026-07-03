@@ -39,7 +39,7 @@ OUTCOME_INAPPLICABLE = EARL.inapplicable  # N/A
 OUTCOME_UNTESTED = EARL.untested      # PLANNED
 OUTCOME_CANT_TELL = EARL.cantTell     # (declined on sufficiency)
 
-# Outcome IRI -> CMMC determination label (consumed by U10 SPRS + U12 SSP).
+# Outcome IRI -> CMMC determination label (consumed by SPRS audit + SSP compiler).
 STATUS_LABEL: dict[URIRef, str] = {
     OUTCOME_PASSED: "MET",
     OUTCOME_FAILED: "NOT MET",
@@ -64,7 +64,7 @@ def _writable_graph(target: Graph | Dataset) -> Graph:
 
 
 def _resolve_oracle_outcome(ds: Graph | Dataset, assertion_iri: URIRef) -> URIRef | None:
-    """Read a U7 ce:ControlCheckAssertion's outcome (assertion → earl:result →
+    """Read a ce:ControlCheckAssertion's outcome (assertion → earl:result →
     earl:TestResult → earl:outcome). Works over a Dataset (all graphs) or Graph.
     """
     def _iter(pattern):

@@ -1,4 +1,4 @@
-"""U5 — COP build + human attestation (per-deliverable affirmation + spillover)."""
+"""COP build + human attestation (per-deliverable affirmation + spillover)."""
 
 import sys
 from pathlib import Path

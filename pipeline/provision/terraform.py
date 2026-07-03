@@ -8,7 +8,7 @@ Shells to the installed `terraform` binary:
     terraform -chdir=<dir> show -json <tmp>         → parsed into a PlanResult
     terraform -chdir=<dir> apply -auto-approve <tmp> (mock-provider apply)
 
-`chdir` defaults to `terraform/tier1` (U14's real HCL); tests point it at the
+`chdir` defaults to `terraform/tier1`; tests point it at the
 self-contained `tests/fixtures/tf_min/`. The compliance labels on each resource
 (`cmmc_module` / `cmmc_control` / `region`) are read from the plan JSON — see
 `base.parse_plan_json`.

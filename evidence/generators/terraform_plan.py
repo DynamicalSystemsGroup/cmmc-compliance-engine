@@ -1,9 +1,9 @@
-"""Plan-time Terraform evidence generator (U14).
+"""Plan-time Terraform evidence generator.
 
 Runs **real** ``terraform`` at plan level against ``terraform/tier1/`` with mock
 providers (no credentials, no cloud, no live apply), reads the resulting plan
 JSON, maps each planned resource to the ``cmmc:`` control(s) it satisfies, runs
-a policy check on the real plan output, and binds the results through the U6
+a policy check on the real plan output, and binds the results through the
 evidence layer as ``ce:PolicyCheck`` / ``ce:Evidence`` nodes that **address**
 controls (never attest).
 
@@ -16,7 +16,7 @@ How it stays cloud-free:
   configured on the plan path.
 
 ``evidentiary_status`` is ``"mock-plan"`` — a plan-time, mock-provider signal
-(distinct from the U6 config-export path's ``"mock"``): the evidence proves the
+(distinct from the config-export path's ``"mock"``): the evidence proves the
 IaC *plans* to the right shape, not that a live cloud is in that state.
 
 Policy safety valve: a built-in residency check reads the real plan JSON and
@@ -77,7 +77,7 @@ def _is_us_region(value: str) -> bool:
 class TerraformPlanGenerator:
     """Generator: real ``terraform plan`` → control-addressed plan evidence.
 
-    Implements the U6 :class:`Generator` protocol. ``tf_vars`` are passed as
+    Implements the :class:`Generator` protocol. ``tf_vars`` are passed as
     ``-var`` flags (e.g. ``{"primary_region": "europe-west1"}`` to exercise the
     residency safety valve).
     """
@@ -270,7 +270,7 @@ class TerraformPlanGenerator:
 
     def bind(self, graph, ctx: GeneratorContext | None = None,
              artifacts: list[EvidenceArtifact] | None = None) -> list:
-        """Collect (if needed) and bind each artifact via the U6 evidence layer.
+        """Collect (if needed) and bind each artifact via the evidence layer.
 
         Returns the list of bound ``ce:Evidence`` IRIs.
         """

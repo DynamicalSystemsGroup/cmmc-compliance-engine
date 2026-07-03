@@ -28,7 +28,7 @@ class MockConfigExportGenerator:
     Implements the :class:`Generator` protocol. ``controls`` lists every control
     this path can address; the actual per-run set is whatever the fixtures
     present (so the ``gap`` set — missing the FIPS export — yields no evidence
-    for ``SC.L2-3.13.11``, which is exactly what drives the U13 Gate-1 refusal).
+    for ``SC.L2-3.13.11``, which is exactly what drives the Gate-1 refusal in the gap fixture set).
     """
 
     # The live-config-export controls (Tier-1 mapping; see criteria.py).

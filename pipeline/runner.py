@@ -9,13 +9,13 @@ shell. Retargeted to the compliance Factory:
   Plan           real `terraform plan` → `show -json` via the ProvisionBackend
   PolicyCheck    region/policy gate + oracles on the plan — FAIL HALTS before Apply
   Apply          mock-provider apply (live deferred)
-  CollectEvidence  U6 generators bind ce:Evidence (addresses controls)
-  Oracles        U7 evaluate + emit ce:ControlCheckAssertion
+  CollectEvidence  evidence generators bind ce:Evidence (addresses controls)
+  Oracles        oracles evaluate + emit ce:ControlCheckAssertion
 
 Every stage emits a p-plan:Activity. The Factory collects RAW results into
-`PipelineState` — it does NOT build the BOM (U11) or run Attestation/Audit
-(U9/U10). Order verification is deliberately independent of the Order Compiler
-(U5): the Factory re-derives the hashes itself so a tampered Order is caught.
+`PipelineState` — it does NOT build the BOM or run Attestation/Audit.
+Order verification is deliberately independent of the Order Compiler: the
+Factory re-derives the hashes itself so a tampered Order is caught.
 """
 
 from __future__ import annotations

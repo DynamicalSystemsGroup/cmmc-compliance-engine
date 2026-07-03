@@ -8,7 +8,7 @@ linked to:
 
 Core principle (regression-tested): evidence **addresses** a control, it never
 **attests** one. This module NEVER emits ``ce:attests`` / ``ce:hasOutcome`` —
-those belong to attestation (U9). Fixture-sourced evidence is flagged
+those belong to attestation (Gate 2). Fixture-sourced evidence is flagged
 ``ce:evidentiaryStatus "mock"`` (R12).
 
 Adapted from ``ADCS-lifecycle-demo/evidence/binding.py``. The ADCS compute

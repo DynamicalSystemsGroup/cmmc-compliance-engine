@@ -3,7 +3,7 @@
 The runtime always builds the Dataset locally (in-memory rdflib). The
 backend's job is to *persist* that dataset — writing to disk for the
 local case. Remote backends (Flexo MMS, Fuseki) from the ADCS demo are
-intentionally omitted here; the write-once tier registry (U11) is the
+intentionally omitted here; the write-once tier registry is the
 production persistence target.
 
 The choice of backend is transparent to every other stage: SPARQL

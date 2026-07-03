@@ -1,10 +1,10 @@
 """Cross-unit SHACL closure + graph-consistency integration probe.
 
-Assembles ONE Dataset spanning the units — catalog (U2) + structural (U3) +
-evidence (U6) + oracle assertions (U7) + Gate-2 attestations (U9) — and asserts
-the closure suite (U2 shapes, run via U9 `verification.verify`) is conformant
-across unit boundaries. If a unit emitted a predicate the shapes don't accept,
-this fails HERE (at the shape layer), not in U13.
+Assembles ONE Dataset spanning the layers — catalog + structural + evidence +
+oracle assertions + Gate-2 attestations — and asserts the closure suite (SHACL
+shapes, run via `verification.verify`) is conformant across layer boundaries.
+If a layer emitted a predicate the shapes don't accept, this fails HERE (at
+the shape layer), not in the end-to-end test.
 
 Read-only probe: builds synthetic-but-real graphs from the shipped code; touches
 no other file. Fixtures are small and deterministic (timestamps fed in).
@@ -43,7 +43,7 @@ _CATALOG.parse("ontology/cmmc-edit.ttl", format="turtle")
 
 
 # ---------------------------------------------------------------------------
-# Fixture assembly (spans U2/U3/U6/U7/U9)
+# Fixture assembly (spans catalog/structural/evidence/oracle/attestation layers)
 # ---------------------------------------------------------------------------
 
 def _load_control(ds, cid: str) -> None:

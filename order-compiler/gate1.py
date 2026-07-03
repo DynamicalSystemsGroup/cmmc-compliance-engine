@@ -1,8 +1,8 @@
 """Gate 1 — planning-coverage audit (the Order Compiler's own SPARQL).
 
 Gate 1 is the "no unmapped / no untestable claim" check run BEFORE an Order is
-emitted. It answers, over the U3 satisfy edge (`sysml:SatisfyRequirementUsage`)
-and the U2 catalog, three questions about the required control set the COP
+emitted. It answers, over the tier1 satisfy edge (`sysml:SatisfyRequirementUsage`)
+and the CMMC catalog, three questions about the required control set the COP
 resolved to:
 
   forward  — does every REQUIRED control have at least one claiming module?

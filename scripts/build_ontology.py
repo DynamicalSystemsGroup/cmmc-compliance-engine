@@ -67,7 +67,7 @@ DEFAULT_BUILD_TIME = "2026-07-02T00:00:00Z"
 # not silent drift — update the rationale when you do.
 #
 # History:
-#   R4 (U2-build): built cmmc.ttl is 1057 triples (110 controls x ~9 props +
+#   R4: built cmmc.ttl is 1057 triples (110 controls x ~9 props +
 #     14 families + TBox). Budget set to 1200 (~143 headroom, ~13%) — room for
 #     small TBox additions without inviting scope creep.
 TRIPLE_BUDGET = 1200

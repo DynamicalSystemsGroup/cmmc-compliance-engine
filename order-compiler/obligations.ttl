@@ -6,7 +6,7 @@
 # the Order. Deliverable obligations are TAGGED but NOT provisioned — UNLESS
 # they carry a CUI/ITAR cmmc:dataMarker, in which case rule_library.resolve()
 # raises a spillover-review flag rather than silently dropping an environment
-# control (R11; see U4 guard).
+# control (R11; see rule_library.py spillover guard).
 
 @prefix cmmc: <http://dynamicalsystems.group/ontology/cmmc#> .
 @prefix ce:   <http://dynamicalsystems.group/compliance-engine/> .

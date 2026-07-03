@@ -1,6 +1,6 @@
 """SSP / Traceability-Matrix SPARQL.
 
-Thin extension over the shared `traceability/queries.py` (U9): re-exports the
+Thin extension over the shared `traceability/queries.py`: re-exports the
 shared query runner + attestation/evidence views, and adds the control-catalog,
 implementation, evidence-location, and POA&M views the VCRM (Document 2) needs.
 All queries assume the union view of the Dataset (`default_union=True`) and are

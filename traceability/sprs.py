@@ -126,8 +126,8 @@ def load_control_statuses(
     """Build ``ControlStatus`` rows from the CMMC catalog + a caller-supplied MET set.
 
     The graph dependency lives HERE, not in ``score()``: the MET set arrives as a
-    plain parameter, so U10's ``audit.py`` can derive ``met_control_ids`` from the
-    U9 attestation graph (every control with a ``ce:attests`` + ``earl:passed``
+    plain parameter, so ``audit.py`` can derive ``met_control_ids`` from the
+    attestation graph (every control with a ``ce:attests`` + ``earl:passed``
     outcome — **including CSP-inherited-and-attested controls**, which the caller
     simply includes in ``met_control_ids``) and hand them in without changing this
     function.

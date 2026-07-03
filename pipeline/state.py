@@ -2,7 +2,7 @@
 
 Adapted from ADCS `pipeline/state.py`: the runner splits into stage-level free
 functions threaded by a single `PipelineState`. Each stage attaches a frozen
-result record so downstream stages (and U9/U10/U11) read prior outputs without
+result record so downstream stages read prior outputs without
 re-querying the graph. `activity_to_stage` maps each Factory stage short-name to
 its ordinal; it MUST enumerate the identical set as
 `pipeline.plan_execution.STEP_NAMES` and `pipeline/plan.ttl` (guarded by a test).
@@ -139,9 +139,9 @@ class PipelineState:
         "Apply":           4,
         "CollectEvidence": 5,
         "Oracles":         6,
-        "Attestation":     7,   # U9 (not run by the Factory back-half)
-        "Audit":           8,   # U10
-        "SignAndStore":    9,   # U11
+        "Attestation":     7,   # not run by the Factory back-half
+        "Audit":           8,
+        "SignAndStore":    9,
     })
 
     def record_failure(self, stage: str, reason: str, **detail) -> None:

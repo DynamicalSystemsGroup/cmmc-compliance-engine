@@ -1,4 +1,4 @@
-"""U9 — verification.py: SHACL closure suite + evidence re-hashing.
+"""verification.py: SHACL closure suite + evidence re-hashing.
 
 Builds tiny in-memory fixture graphs (no pipeline). Exercises:
   - a `passed` attestation missing adequacy/sufficiency fails the suite;

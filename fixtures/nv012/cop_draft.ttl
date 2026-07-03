@@ -1,4 +1,4 @@
-# NV012 Contract Obligation Profile — ATTESTABLE DRAFT (fixture for U5 tests).
+# NV012 Contract Obligation Profile — ATTESTABLE DRAFT (fixture for compiler tests).
 #
 # Self-contained: declares the cmmc:Obligation individuals the Order Compiler
 # resolves (rule_library.load_obligations reads these). Unlike the canonical

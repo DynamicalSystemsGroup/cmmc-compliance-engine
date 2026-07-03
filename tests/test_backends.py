@@ -1,4 +1,4 @@
-"""U1 — backend abstraction (LocalBackend only).
+"""Backend abstraction tests (LocalBackend only).
 
 Adapted from the ADCS test_backends.py, dropping the Flexo/Fuseki/txnlog
 mocked-HTTP cases (those backends are not ported). LocalBackend is

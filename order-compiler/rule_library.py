@@ -1,4 +1,4 @@
-"""Deterministic obligation -> required-control-set mappings (U4).
+"""Deterministic obligation -> required-control-set mappings.
 
 This is the *regulation-cited* rule library used by step C of the Order Compiler
 pipeline (obligation -> control). It is deterministic and versioned: every rule
@@ -13,7 +13,7 @@ resolve to an empty set (that would drop an environment control on the floor).
 Such an obligation raises :class:`SpilloverReviewRequired` so a human resolves
 the env-spillover before an Order is compiled.
 
-Return contract (consumed by U5):
+Return contract:
     resolve(obligation) -> ControlSet
         * ControlSet IS a frozenset[str] of NIST 800-171 control IDs.
         * ControlSet.markers is a frozenset[str] of non-control policy markers
@@ -34,7 +34,7 @@ from typing import Iterable
 
 from rdflib import Graph, RDF
 
-from ontology.prefixes import CMMC, CE  # noqa: F401  (CE re-exported for U5)
+from ontology.prefixes import CMMC, CE  # noqa: F401  (CE re-exported for the compiler)
 
 # Repo root = this file's grandparent (order-compiler/ -> repo root).
 _REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -67,9 +67,10 @@ class UnknownControlError(ValueError):
 class SpilloverReviewRequired(Exception):
     """A CUI/ITAR-marked deliverable would drop to {} — human review required.
 
-    Carries the offending obligation so U5 can surface it in the COP-attestation
-    prompt ("this deliverable touches CUI/ITAR on DSG infra; confirm the env
-    controls it imposes") instead of silently omitting environment controls.
+    Carries the offending obligation so the compiler can surface it in the
+    COP-attestation prompt ("this deliverable touches CUI/ITAR on DSG infra;
+    confirm the env controls it imposes") instead of silently omitting environment
+    controls.
     """
 
     def __init__(self, obligation: "Obligation"):
@@ -233,8 +234,8 @@ def resolve(obligation: Obligation, *, catalog_path: Path | None = None) -> Cont
 
 
 # ---------------------------------------------------------------------------
-# Loader — read the finalized COP obligations from obligations.ttl so U5 can
-# feed resolve() without reconstructing Obligation objects by hand.
+# Loader — read the finalized COP obligations from obligations.ttl so the
+# compiler can feed resolve() without reconstructing Obligation objects by hand.
 # ---------------------------------------------------------------------------
 _OBLIGATIONS_TTL = _REPO_ROOT / "order-compiler" / "obligations.ttl"
 

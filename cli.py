@@ -1,4 +1,4 @@
-"""Operator CLI — the one-command NV012 compliance demo (U13a).
+"""Operator CLI — the one-command NV012 compliance demo.
 
 Chains the whole system end-to-end:
 

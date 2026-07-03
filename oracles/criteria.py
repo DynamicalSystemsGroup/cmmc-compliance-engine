@@ -51,7 +51,7 @@ class OracleResult:
 # intentionally ABSENT → evaluate() returns cantTell for them (never fabricate).
 #
 # Every metric_key is a real or plausible evidence-summary export field. The
-# five confirmed keys emitted by U6 (agent-3) are:
+# five confirmed keys emitted by the evidence generators are:
 #   mfa_enforced_privileged (bool), fips_module_present (bool),
 #   cui_encrypted_at_rest (bool), unauthorized_principals (int), data_region (str).
 # Two further plausible fields are added (documented at their entries):

@@ -2,7 +2,7 @@
 
 Ported from ADCS-lifecycle-demo/traceability/queries.py and retargeted:
 requirement → cmmc:Control, and the attestation/evidence instance vocab
-rtm: → ce:. Imported by traceability.attestation and later by documents/ (U12).
+rtm: → ce:. Imported by traceability.attestation and later by documents/.
 
 All queries assume the union view of the Dataset (default_union=True). Results
 come back as lists of dicts via query_to_dicts().
