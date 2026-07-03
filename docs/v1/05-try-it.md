@@ -1,162 +1,250 @@
 # 05 — Try it yourself
 
-Copy-paste this and watch the whole thing run on your machine. No cloud account,
-no credentials, nothing to sign up for. Unfamiliar words → [glossary](06-glossary.md).
+This chapter is a hands-on run guide. You will run the Compliance Engine end to end on
+your own machine, three times, and read the exact output each run produces. No cloud
+account, no credentials, and nothing is deployed. If a term is unfamiliar, see the
+[glossary](06-glossary.md).
 
-The output shown below is the **real** output captured from this repo — yours will
-match (the run is deterministic).
+The engine produces byte-deterministic output from a given set of inputs. The demo
+inputs are fixed, so the output you see on your machine will match the output printed
+in this chapter line for line.
 
 ---
 
 ## Prerequisites
 
+You need two things, one of them optional.
+
 ```bash
-# 1. Install dependencies (uses uv — https://docs.astral.sh/uv/)
+# 1. Install dependencies with uv (https://docs.astral.sh/uv/)
 uv sync
 
-# 2. terraform is OPTIONAL. The demo's default provisioner is a built-in fake
-#    (no cloud, no terraform needed). You only need terraform installed if you
-#    want to exercise the real plan-level path.
+# 2. terraform is OPTIONAL.
+#    The demo runs a real `terraform plan` only on the real plan path.
+#    You only need terraform installed if you exercise that path.
+#    Nothing is deployed either way: the plan uses mock providers,
+#    no cloud is contacted, and no credentials are used.
 ```
 
-Everything below writes artifacts into a directory you choose with
-`--output-dir`. We'll use `/tmp/...` so nothing clutters the repo.
+The installed CLI entry point is `ce`. Two equivalent forms exist if you prefer them:
+`compliance-engine` and `python -m compliance_engine`. This chapter uses `ce`.
+
+Every run writes its artifacts into the directory you name with `--output-dir`. The
+examples below write into `/tmp/...` so nothing is left in the repository.
+
+The `demo` command runs the full chain in one shot:
+`compile-order` then `run-factory` then `attest` then `audit` then `bom` then `ssp`.
+The `--evidence-set` flag selects which fixture world the run uses, and `--auto`
+runs the chain without stopping for input. The three values below —
+`all-covered`, `gap`, and `contradiction` — are the three scenarios in this chapter.
 
 ---
 
-## Scenario A — the happy path (all-covered)
+## Scenario A — the covered run (all-covered)
 
-Everything the contract requires is covered and signed off.
+Everything the NV012 contract requires is covered by a claiming module and signed off
+by a human in the required role. This is the run that completes cleanly.
 
 ```bash
-uv run python cli.py demo --evidence-set all-covered --auto --output-dir /tmp/nv012-all
+uv run ce demo --evidence-set all-covered --auto --output-dir /tmp/nv012-all
 ```
 
-Real output (trimmed — the per-control MET lines are omitted):
+Output (the many per-control MET lines are trimmed; every summary line is verbatim):
 
 ```
 [demo] evidence-set=all-covered
-[1/6 compile-order] Order cdad6fb17f7c… (22 controls)
+[1/6 compile-order] Order cdad6fb17f7cb53728276bb24de654c87b6725e31b9bd731efa7769234afbc85 (22 controls)
 [Preflight] Probing backends...
   Provision: FakeProvisionBackend (compliant, deterministic, no terraform)
-  Storage:   Local filesystem (rdflib Dataset, persisted as output/engine.ttl + .trig)
+  Storage:   Local filesystem (rdflib Dataset, persisted as output/engine.ttl + output/engine.trig)
   Provision probe: PASS
   Storage probe:   PASS
-[2/6 run-factory] 7 evidence nodes, 6 oracle outcomes
-  … 22 controls attested MET …
+[2/6 run-factory] 20 evidence nodes, 51 oracle outcomes
 [3/6 attest] 22 control(s) attested (Gate 2)
 [4/6 audit]
 SPRS: score=110 status=Final valid_submission=True
 Proven vs attested: 4 MET-by-machine / 18 MET-by-human-only
 Contradictions (attested MET over failed machine check): 0
-[5/6 bom] 4483673449ac… evidentiary_status=mock -> /tmp/nv012-all/bom.json
+[5/6 bom] cc29c2e11b5009883ec263b4593cf38d4864d972c7cb140f9bc7993382f77ca5 evidentiary_status=mock -> /tmp/nv012-all/bom.json
 [6/6 ssp]
 SSP: wrote /tmp/nv012-all/ssp.md (NON-EVIDENTIARY banner: present)
 ```
 
-Exit code **0**. **What it proves:** the full chain runs end to end —
-[Gate 1](06-glossary.md#gate-1) passes, the [Factory](06-glossary.md#factory)
-completes, all 22 required controls are attested MET, the score is
-**110 / Final**, and a **[BOM](06-glossary.md#bom) + [SSP](06-glossary.md#ssp)** are
-produced. Note the honest lines: only **4** of the 22 are machine-proven; the rest
-rest on human attestation. And the BOM/SSP are stamped **mock** (see "what's real
-vs pretend" below).
+Exit code: `0`.
 
-## Scenario B — a coverage gap (gap)
+### What it proves
 
-Now require a control that nothing implements. This is the safety check.
+The full chain runs. Gate 1 passes and emits a signed Order over 22 required controls.
+The runtime (called the Factory in the code) plans the environment, collects evidence,
+and runs the oracles. All 22 required controls are attested MET at Gate 2. The audit
+computes an [SPRS](06-glossary.md#sprs) score of 110 with status Final and
+`valid_submission=True`, and reports zero contradictions. A
+[BOM](06-glossary.md#bom) and an [SSP](06-glossary.md#ssp) are written. This is the
+scenario walked through in [01-the-order.md](01-the-order.md),
+[02-the-factory.md](02-the-factory.md), and [04-the-proof.md](04-the-proof.md).
+
+### The honest caveats
+
+Read the summary lines carefully; they are designed to keep you from being misled.
+
+- **Only 4 of the 22 required controls are machine-proven.** The line
+  `4 MET-by-machine / 18 MET-by-human-only` says the machine oracle actually proved 4
+  of the required controls; the other 18 rest on human attestation. That split is over
+  the Order's 22 required controls, not over the whole catalog.
+- **The `20 evidence nodes, 51 oracle outcomes` counts are not the score.** Those are
+  the totals the runtime collects over this evidence-set's entire fixture world. The
+  NV012 Order still requires only 22 controls, and the SPRS score and the
+  proven-vs-attested split are computed over those 22. The score does not cover all 110
+  controls, and the 51 oracle outcomes do not all feed the score.
+- **The BOM and SSP are mock.** The BOM is stamped `evidentiary_status=mock`, and the
+  SSP is written with the NON-EVIDENTIARY banner present. See "What is real versus
+  pretend" below. A score of 110 / Final here does not make either document a
+  submittable government artifact.
+
+---
+
+## Scenario B — the coverage gap (gap)
+
+This run asks for a control that nothing can cover, so the compiler refuses before
+anything is built.
 
 ```bash
-uv run python cli.py demo --evidence-set gap --auto --output-dir /tmp/nv012-gap
+uv run ce demo --evidence-set gap --auto --output-dir /tmp/nv012-gap
 ```
 
-Real output:
+Output:
 
 ```
 [demo] evidence-set=gap
-[1/6 compile-order] Gate 1 REFUSED — Order NOT emitted. Missing module for required control(s): AC.L2-3.1.12
+[1/6 compile-order] Gate 1 REFUSED — Order NOT emitted. Obligation cites control ID 'XX.L2-3.99.99', which is not one of the 110 controls in cmmc-edit.ttl.
 ```
 
-Exit code **2**. **What it proves:** [Gate 1](06-glossary.md#gate-1) is a real gate.
-A required control (`AC.L2-3.1.12`) has no implementing [module](06-glossary.md#module),
-so the compiler **refuses to emit an Order and names the missing control**. The
-Factory never runs — **nothing downstream is built**. You cannot accidentally ship
-a plan with a silent hole in it.
+Exit code: `2`.
 
-## Scenario C — a contradiction (contradiction)
+### What it proves
 
-Everything runs, but one machine check **fails** and a human signs it MET anyway
-without a written override.
+The compiler will not emit an Order it cannot fully cover, and it names the problem
+instead of dropping it. Here the drafted obligations cite control ID `XX.L2-3.99.99`,
+which the catalog validator does not recognize, so the run stops at step 1 and the
+Factory never starts. Exit code 2 signals a Gate 1 refusal (or bad arguments), distinct
+from a clean completion.
+
+There is a nuance worth stating plainly. All 110 real catalog controls now have a
+claiming module, so a genuine "required but unclaimed" gap cannot occur with a real
+control. To still exercise the lesson, this scenario injects a fake, non-catalog
+control ID (`XX.L2-3.99.99`) that the catalog validator rejects before Gate 1 even
+runs. The point is identical either way: the compiler refuses to emit an Order it
+cannot fully cover, and it tells you exactly what is wrong. Gate 1 itself is described
+in [01-the-order.md](01-the-order.md).
+
+---
+
+## Scenario C — the contradiction (contradiction)
+
+This run completes and even scores 110 / Final, but a machine oracle fails on one
+control while a human still attests that control MET, with no written override
+justification. The audit surfaces that conflict rather than letting the score hide it.
 
 ```bash
-uv run python cli.py demo --evidence-set contradiction --auto --output-dir /tmp/nv012-con
+uv run ce demo --evidence-set contradiction --auto --output-dir /tmp/nv012-con
 ```
 
-Real output (tail):
+Output (tail; earlier lines match Scenario A's shape):
 
 ```
+[2/6 run-factory] 7 evidence nodes, 6 oracle outcomes
+[3/6 attest] 22 control(s) attested (Gate 2)
 [4/6 audit]
 SPRS: score=110 status=Final valid_submission=True
 Proven vs attested: 3 MET-by-machine / 19 MET-by-human-only
 Contradictions (attested MET over failed machine check): 1
-[5/6 bom] 047ac45af023… evidentiary_status=mock -> /tmp/nv012-con/bom.json
+[5/6 bom] 047ac45af023a08d907c67cc19a1540e3ecb2f81003778d528ec5324df2b3a37 evidentiary_status=mock -> /tmp/nv012-con/bom.json
 [6/6 ssp]
 SSP: wrote /tmp/nv012-con/ssp.md (NON-EVIDENTIARY banner: present)
 ```
 
-Exit code **0**. **What it proves:** the run *completes* and even scores 110/Final —
-**but the audit flags 1 contradiction** and the SSP footer says
-`contradictions: 1`. This is the design point from [04](04-the-proof.md#1-the-audit):
-the score does not silently absorb the conflict; the MET-over-failed-oracle is
-surfaced for a human to review. A 110 here is **not** clean.
+Exit code: `0`.
+
+### What it proves
+
+The run completes and the numeric score is again 110 / Final with
+`valid_submission=True`. That number alone is not a clean result. Two lines tell the
+real story:
+
+- `Proven vs attested: 3 MET-by-machine / 19 MET-by-human-only` — one control that was
+  machine-proven in Scenario A now fails its oracle, so the machine-proven count drops
+  from 4 to 3 and the human-only count rises from 18 to 19.
+- `Contradictions (attested MET over failed machine check): 1` — this is the R13
+  contradiction, described in [03-machine-vs-human.md](03-machine-vs-human.md) and
+  [04-the-proof.md](04-the-proof.md). A human marked a control MET while its machine
+  oracle failed, with no written override justification, so the audit reports it
+  separately from the score. The score does not silently absorb the conflict.
+
+> Important: a 110 / Final result with `contradictions: 1` is not a clean pass. The
+> score and the contradiction list are reported separately on purpose. Read both. A
+> written override justification is what clears the contradiction; without one, the
+> unexplained human-over-machine call is left visible for an assessor.
 
 ---
 
-## What lands in your output directory
+## What lands in the output directory
 
-After Scenario A, `ls /tmp/nv012-all/` shows:
+After Scenario A, listing `/tmp/nv012-all/` shows the artifacts of the run. Each is
+described in full in [04-the-proof.md](04-the-proof.md).
 
-| File / dir       | What it is |
-| ---------------- | ---------- |
-| `bom.json`       | The [BOM](06-glossary.md#bom) — the machine-readable proof file (control → resource → evidence hash → status → attester). |
-| `ssp.md`         | The [SSP](06-glossary.md#ssp) — the human-readable government document with the 110-row [traceability matrix](06-glossary.md#vcrm) + the NON-EVIDENTIARY banner. |
-| `audit.md`       | The [audit](06-glossary.md#audit) report (forward/backward pass, contradiction list, proven-vs-attested split) in Markdown. |
-| `audit.json`     | The same audit, machine-readable. |
-| `engine.trig`    | The full knowledge graph ([RDF](06-glossary.md#rdf) named graphs) the whole run was built from — the single source of truth. |
-| `registry/`      | The content-addressed store: `objects/` (every artifact keyed by its hash) + `index.json` (contract → BOM → artifact hashes). |
-| `run_state.json` | A snapshot of the Factory's internal state (order hash, evidence hashes, oracle outcomes, resources) for debugging. |
-
----
-
-## What's real vs pretend right now (be honest)
-
-This is **Phase I**. It runs a real software spine end to end, but:
-
-- **Evidence is mock / fixture-backed.** The "config exports" are canned JSON files
-  under `fixtures/nv012/`, not live pulls from a real Google/GCP tenant. That's why
-  every BOM and SSP carries the **NON-EVIDENTIARY** mark and is **not submittable**.
-- **Terraform is plan-level only.** The environment is *planned* with **mock
-  providers** — no cloud is contacted and **nothing is deployed** (`apply`). The
-  default demo provisioner is an in-memory fake.
-- **Only ~7 evidence artifacts / ~6 machine checks; 4 of 22 machine-proven.** The
-  rest of the required controls are human-attested (or CSP-inherited). And the
-  score covers only the **22 required**, not all **110** modeled — **88** are out of
-  NV012's scope.
-- **Deferred:** cryptographic signing ([Sigstore](06-glossary.md#sigstore)),
-  [IL5](06-glossary.md#il4--il5), live `terraform apply` + live compliance tests,
-  and actual SPRS/PIEE submission. The engine *computes* the score; a human still
-  submits it.
-
-None of this is hidden by the tool — the banner, the "mock" stamp, and the
-proven-vs-attested split are all there to keep you honest.
+| Artifact | What it is |
+| --- | --- |
+| `bom.json` | The Bill of Materials. Per required control: the claiming module(s), evidence hashes, oracle outcome, attestation outcome, and status. Content-addressed by its own SHA-256, stored write-once, and stamped with the weakest evidentiary status present. |
+| `ssp.md` | The System Security Plan. Deterministic, compiled from the same dataset the BOM records. Its centerpiece is the per-control traceability matrix (also called the VCRM). It emits the NON-EVIDENTIARY banner structurally when the inputs are mock. |
+| `audit.md` | The bidirectional audit in human-readable form: the SPRS score, POA&M legality, and the contradiction list, plus the forward and backward passes. |
+| `audit.json` | The same audit content in machine-readable form. |
+| `engine.trig` | The full RDF named-graph dataset for the run — every lifecycle layer (ontology, plan, structural, order, evidence, attestations, plan-execution, audit) in one file. |
+| `registry/` | The write-once, content-addressed object store, plus a two-level index (contract, then BOM, then artifact hashes). Every artifact is keyed by its hash. |
+| `run_state.json` | The per-stage run-state summary: order hash, evidence hashes, oracle outcomes, and resources, for inspection and debugging. |
 
 ---
 
-### In one sentence
+## What is real versus pretend
 
-Three commands show the whole system: **all-covered** → 110/Final + a mock BOM/SSP,
-**gap** → Gate 1 refuses and names the hole, **contradiction** → it completes but
-loudly flags the human-over-machine conflict — and everything it produces is marked
-NON-EVIDENTIARY because the evidence is still pretend.
+State this plainly to anyone reading the output. The engine runs a real software spine
+end to end, but nothing it produces today is a submittable government artifact.
 
-### Next: the [glossary](06-glossary.md) · or back to the [docs index](README.md)
+- **Every run is non-evidentiary.** Evidence is fixture-backed (from `fixtures/nv012/`)
+  and the Terraform plan uses mock providers. Because a weak evidentiary status is
+  present, the whole BOM and SSP are stamped NON-EVIDENTIARY, and there is no switch to
+  remove that banner while mock inputs are present.
+- **Terraform is plan-level only.** The runtime runs a real `terraform plan` with mock
+  providers: no cloud is contacted, no credentials are used, and nothing is deployed.
+  Live `terraform apply` is deferred.
+- **The engine records claims; it does not make an organization compliant.** A false
+  claim still passes here. The human signer — the Affirming Official — carries the legal
+  accountability, and an assessor is expected to catch a false claim on reproduction.
+- **References are not resolved live yet.** They resolve against local files and
+  fixtures, not live systems.
+- **Attestations are not cryptographically signed yet.** Trust today is the Git history
+  of the attestation file. Sigstore/cosign is scaffolded (there is a `sig_algo` field)
+  but not wired.
+- **The engine does not talk to SPRS.** It computes the score; a human files that score
+  at the government portal.
+- **The 16 policy documents under `src/compliance_engine/documents/policies/` are
+  scaffolding** and must be replaced with an organization's own adopted policies.
+- **Also deferred:** live evidence resolvers, cloud (GCS/Azure) registry backends, and
+  an approval gate.
+
+None of this is hidden by the tool. The NON-EVIDENTIARY banner, the `mock` stamp, and
+the proven-versus-attested split are all in the output for exactly this reason.
+
+---
+
+## Summary
+
+Three commands show the whole system on your own machine, and because the output is
+byte-deterministic, yours matches this chapter exactly. The `all-covered` run completes
+with a score of 110 / Final and writes a mock BOM and SSP; the `gap` run makes Gate 1
+refuse and name the offending control ID before anything is built (exit code 2); and
+the `contradiction` run completes at 110 / Final yet loudly reports one contradiction,
+showing that the score never absorbs an unexplained human-over-machine call. Every
+document produced is stamped NON-EVIDENTIARY because the evidence is still
+fixture-backed.
+
+Next: the glossary ([06-glossary.md](06-glossary.md)).

@@ -1,157 +1,308 @@
-# 04 — The proof: what the machine produces and how to read it
+# The proof: what the run produces and how to read it
 
-You've seen the environment get built and checked (→ [02 — The Factory](02-the-factory.md)).
-Now: **what does the machine hand you at the end, and how do you read it without
-being fooled?**
+The previous chapter explained how a single control becomes MET (see
+[03-machine-vs-human.md](03-machine-vs-human.md)). This chapter covers what the
+runtime hands you at the end of a run, and how to read those outputs without being
+misled.
 
-Every unfamiliar word links to the [glossary](06-glossary.md). The numbers below
-are the **real** output of the NV012 demo (→ [05 — Try it](05-try-it.md)), not
-made-up examples.
+Every run produces two checks and two documents, plus one idea that ties them
+together:
 
-There are four outputs. Two are checks (the **audit** and the **SPRS score**),
-two are documents (the **BOM** and the **SSP**). Then there's the idea that ties
-them together: **proof by reproduction**.
+- The **audit** answers "does the chain hold together, in both directions, and did
+  any human overrule a machine?"
+- The **SPRS score** turns the audit into the single number a defense contractor
+  reports to the government, with a validity flag attached.
+- The **BOM** (Bill of Materials) is the tamper-evident, content-addressed record
+  of every control, its evidence, and its outcome.
+- The **SSP** (System Security Plan) is the deterministic government document
+  compiled from that same record.
+- **Proof by reproduction** is the property that lets an outside assessor re-derive
+  all of the above from the delivered artifacts alone, without trusting the party
+  that produced them.
+
+Terms in bold link to the [glossary](06-glossary.md). Every number, path, and output
+string below is the real output of the shipped NV012 demonstration contract (see
+[05-try-it.md](05-try-it.md)); none is invented.
+
+All outputs are written under the `--output-dir` you pass on the command line.
 
 ---
 
-## 1. The audit — "does the chain hold together?"
+## The audit
 
-Think of a paper trail. The audit walks it **both directions** and reports
-whether it's unbroken:
+The audit is the bidirectional check that the evidence chain is complete and
+consistent. Its code lives in
+`src/compliance_engine/traceability/audit.py`, and it runs as stage 4 of the demo
+chain. It reports along two directions plus two additional dimensions you must not
+skip.
 
-- **Forward:** every required control has something implementing it **and** a
-  human sign-off. (Demo: `Forward PASS (22 checked, 0 failures)`.)
-- **Backward:** every sign-off actually points at evidence for the *right*
-  control — no sign-off floating free. (Demo: `Backward PASS (5 checked, 0 failures)`.)
+### Forward and backward
 
-Then it adds two things you must not skip:
+- **Forward.** Every control the **Order** requires has at least one claiming module,
+  its evidence passed its **oracle**, and a human attested it in the required role.
+  Nothing required is left unaccounted for.
+- **Backward.** Every control-mapping row that made it into the BOM traces back to a
+  control the Order actually required. Nothing floats free; no sign-off points at a
+  control outside the Order's required set.
 
-- **The contradiction list.** A red-flag list. It catches any control a
-  human marked **MET** while the machine check for that same control **failed** —
-  *unless* the human wrote down a justification for overruling the machine. An
-  unexplained override is exactly the kind of thing an assessor needs to see, so
-  the system surfaces it separately instead of hiding it inside the score.
-- **The proven-vs-attested split.** One honest line: how many MET controls the
-  machine actually *proved* versus how many rest on **human judgment alone**.
-  Demo (all-covered): **`4 MET-by-machine / 18 MET-by-human-only`**.
+This is **Gate 2** at BOM close: the BOM's control-mapping is audited against the
+Order's required set, forward and backward. A control is met only when its evidence
+passes its oracle **and** a human attests it in the required role. Forward-and-backward
+completeness is what makes the BOM a closed record rather than a pile of assertions.
 
-> ⚠ **The single most important honesty point in this whole system:** a score of
-> "110 / Final" with **`contradictions: 1`** is **not** a clean result. The score
-> and the contradiction list are *separate on purpose*. Always read both.
+### The proven-vs-attested split
 
-## 2. The SPRS score — and what "110" really means
-
-[SPRS](06-glossary.md#sprs) is the government's compliance scoreboard. The rule is
-simple:
+The audit prints one line that separates what a machine proved from what rests on
+human judgment alone. For the all-covered demo:
 
 ```
-score = 110 − (sum of the weights of the controls that are NOT MET)
+Proven vs attested: 4 MET-by-machine / 18 MET-by-human-only
 ```
 
-Each control is worth **1, 3, or 5 points** by how much it matters. Land on:
+All 22 required controls are MET. Of those, a machine oracle actually measured 4 of
+them (a **config-check** oracle passed on real evidence). The other 18 are MET
+because a named human in the required role attested them; the engine confirmed the
+attested reference is registered, resolves, is fresh, and is signed by the right
+role, but the truth of the control still lives in an authoritative source a human
+vouched for, not in a machine measurement. This split is printed on purpose so that
+"22 controls met" can never quietly imply "22 controls machine-proven."
 
-- **110 → Final** (everything in scope is MET)
-- **88–109 → Conditional** (you may proceed with a [POA&M](06-glossary.md#poam) — a
-  dated fix-it plan)
-- **below 88 → Ineligible**
+### The contradiction list
 
-The demo prints `SPRS: score=110 status=Final valid_submission=True`.
+The audit surfaces contradictions separately from the score. A contradiction
+(referred to as R13 in the code comments) is a control a human marked MET while its
+machine oracle failed or was absent, with no written override justification. It is
+reported on its own line so an unexplained human-over-machine call cannot hide inside
+a passing number. A written override justification clears the contradiction; the
+absence of one is exactly what an assessor needs to see. The same
+`src/compliance_engine/traceability/audit.py` computes this dimension.
 
-**Here is the honesty that matters most.** The score is computed over **the
-Order's required set — about 22 controls for NV012 — not all 110.** So:
-
-> **"110 / Final" means "all 22 controls this contract requires were marked MET."
-> It does NOT mean "all 110 controls were tested."**
-
-And even within those 22, only a handful are *machine-proven*. The full picture:
-
-```
-110  controls modeled in the catalog (the whole CMMC Level 2 rulebook)
- 22  required by the NV012 Order          ← the score is computed over THESE
-  7  evidence artifacts / ~6 machine oracle checks produced by the Factory
-  4  of the 22 end up machine-PROVEN (oracle passed AND a human attested)
- 18  of the 22 rest on human attestation (documentary / inherited)
- 88  controls entirely out of NV012's scope
-```
-
-**POA&M legality (a hard rule).** Only **1-point** controls may be deferred onto a
-fix-it plan. Put a **3- or 5-point** control (or one of six specifically excluded
-1-pointers) on a POA&M and the submission is **automatically invalid** — the code
-flags `valid_submission=False` **regardless of the number**. A high score with an
-illegal deferral is not a pass.
-
-## 3. The BOM — the single machine-readable proof file
-
-The **BOM** ([Bill of Materials](06-glossary.md#bom), written to `bom.json`) is the
-one file that pins the whole run. For **each required control** it records a row:
+For the all-covered demo the line reads:
 
 ```
-control_id        AC.L2-3.1.1
-resource_ids      ["CUI_Users_Group"]                         ← what provisioned it
-evidence_hashes   ["4bba2d0adcbb…", "6c69bdddaea3…"]          ← the evidence, by hash
-oracle_outcome    passed                                       ← what the machine found
-attestation_outcome passed                                     ← what the human signed
-status            MET                                          ← driven by the HUMAN
+Contradictions (attested MET over failed machine check): 0
 ```
 
-Plus the list of who attested each control. Two properties make it trustworthy:
+For the contradiction demo, where one oracle deliberately fails but a human still
+attests the control, it reads:
 
-- **It inherits the weakest mark.** If *any* input is mock/fixture-backed, the whole
-  BOM is stamped `evidentiary_status: "mock"`. You can't launder pretend evidence
-  into a real-looking BOM. (Demo BOM: `evidentiary_status=mock`.)
-- **It is content-addressed and stored write-once.** The BOM gets its own
-  [SHA-256](06-glossary.md#sha-256) hash (demo: `4483673449ac…`). It's saved in a
-  **[registry](06-glossary.md#registry)** — a store where **the file's hash IS its
-  address**. Change one byte and the address no longer matches, so tampering is
-  instantly detectable. Write-once means an address can never be silently
-  overwritten.
+```
+Contradictions (attested MET over failed machine check): 1
+```
 
-The registry keeps a tiny two-level index so anyone can look it up later:
-`contract "NV012" → latest BOM hash → the list of every artifact hash` (demo: 19
-artifact hashes under the BOM).
+### The honesty point
 
-## 4. The SSP — the same facts as the government document
+> A score of 110 with status Final and `valid_submission=True` is **not** a clean
+> result if the contradiction line is nonzero. The score and the contradiction list
+> are separate on purpose. The score can read 110/Final while a human has overruled
+> a failed machine check with no written justification. Read both lines together, or
+> you have not read the audit.
 
-The **[SSP](06-glossary.md#ssp)** (`ssp.md`) is the required human-readable
-artifact: a System Security Plan whose centerpiece is the **110-row traceability
-matrix** ([VCRM](06-glossary.md#vcrm)) — one row per control listing implementation,
-responsible party, evidence location, evidence hash, status, gaps, and POA&M
-reference.
+In the contradiction demo the audit prints exactly that combination:
 
-It is **not** hand-written. It's compiled straight from the same data as the BOM,
-so it can't disagree with the graph. Two guarantees:
+```
+SPRS: score=110 status=Final valid_submission=True
+Proven vs attested: 3 MET-by-machine / 19 MET-by-human-only
+Contradictions (attested MET over failed machine check): 1
+```
 
-- **Byte-stable:** identical inputs produce a byte-for-byte identical document, and
-  `documents.ssp build --check` re-compiles and fails if the delivered file has
-  drifted from the data.
-- **It cannot hide the mock warning.** When the run is fixture-backed, the SSP
-  *structurally* emits a big **NON-EVIDENTIARY** banner at the top and stamps it in
-  the footer — there is no switch to turn it off. The demo SSP opens with:
-  *"⚠ NON-EVIDENTIARY — fixture-derived / auto-attested … not a submittable SSP."*
-  Its footer reads: `SPRS summary: score 110 (Final); 4 MET-by-machine / 18
-  MET-by-human-only; contradictions: 0.`
+Score 110/Final, and one unexplained contradiction. The number alone would mislead;
+the two lines together tell the truth.
 
-## 5. Proof by reproduction — why this beats a folder of screenshots
+---
 
-The core claim of the whole engine: **an auditor doesn't have to trust you.** Given
-the delivered BOM, a [C3PAO](06-glossary.md#c3pao) assessor can:
+## The SPRS score
 
-1. **Resolve** every artifact by its hash from the registry,
-2. **Re-hash** each one and confirm the fingerprint still matches (tamper check),
-3. **Re-run** the plan-level checks and confirm the control→resource→evidence
+The **SPRS** score is the single number a defense contractor reports for CMMC
+Level 2. It is computed in `src/compliance_engine/traceability/sprs.py`.
+
+### The formula
+
+```
+score = 110 - (sum of the weights of the controls that are NOT met)
+```
+
+Every control carries a weight of 1, 3, or 5. A fully met set of controls loses no
+weight, so the score is 110. Each not-met control subtracts its own weight.
+
+### The bands
+
+| Score      | Status      | Meaning                                             |
+|------------|-------------|-----------------------------------------------------|
+| 110        | Final       | Every applicable control met.                        |
+| 88 to 109  | Conditional | Permitted with a **POA&M** (a Plan of Action and Milestones). |
+| Below 88   | Ineligible  | Not submittable.                                     |
+
+### It is computed over the Order's required set, not all 110
+
+This is the point most likely to be misread. The catalog has **110** controls, but
+the SPRS score is computed over the **Order's required set**. For NV012 that set is
+**22** controls, so the demo score of 110 is a full pass over those 22, not over the
+whole catalog. The demonstration contract exercises a 22-control slice; the
+structural model claims all 110, but the score is scoped to what this Order requires.
+
+Do not read the demo's 110 as "all 110 controls proven." Likewise, do not read the
+all-covered demo's `20 evidence nodes, 51 oracle outcomes` as feeding the score. Those
+counts are collected over the whole fixture world for that evidence-set; the score and
+the proven-vs-attested split are computed over the 22 met controls of the Order.
+
+### What the numbers mean
+
+A small breakdown of the all-covered demo:
+
+| Number | What it counts                                                        |
+|--------|-----------------------------------------------------------------------|
+| 110    | Controls in the catalog (NIST SP 800-171 Rev. 2 / CMMC Level 2).      |
+| 22     | Controls required by the NV012 Order (the demo's slice).              |
+| 4      | Of the 22, machine-proven (a config-check oracle passed).            |
+| 18     | Of the 22, met by human attestation alone.                           |
+| 110 minus 22 = 88 | Catalog controls outside this Order's scope (not scored here). This 88 is a count of out-of-scope controls; do not confuse it with the SPRS Conditional-band threshold of 88 points above. |
+
+### POA&M legality
+
+The band alone does not decide whether a submission is valid. A separate legality
+check gates it:
+
+- Only **1-point** controls may be deferred onto a POA&M.
+- Deferring a **3-point** or **5-point** control, or one of six specifically excluded
+  1-pointers, sets `valid_submission=False` regardless of the numeric score.
+
+So a score in the Conditional band with an illegal deferral is not a valid
+submission, and the flag says so plainly. The demo, with every required control met,
+reports `valid_submission=True`.
+
+---
+
+## The BOM
+
+The **BOM** is written to `bom.json`. It is the machine-readable record of every
+required control and what supports it. Each required control gets one row.
+
+### Per-control row
+
+| Field               | What it holds                                              |
+|---------------------|-----------------------------------------------------------|
+| control             | The control ID from the catalog.                           |
+| resource / module   | The claiming module (and the resource it maps to).         |
+| evidence hashes     | The content-address(es) of the supporting evidence.        |
+| oracle outcome      | passed, failed, cantTell, or needsAction.                  |
+| attestation outcome | The human sign-off result and the signer's role.           |
+| status              | The control's overall status and evidentiary status.       |
+
+### Content-addressed, write-once, weakest-status
+
+- **Content-addressed.** The BOM has its own **SHA-256**. In the all-covered demo the
+  BOM hash is `cc29c2e11b5009883ec263b4593cf38d4864d972c7cb140f9bc7993382f77ca5`; in
+  the contradiction demo it is
+  `047ac45af023a08d907c67cc19a1540e3ecb2f81003778d528ec5324df2b3a37`. Change one byte
+  and the hash changes, which is how tampering is detected.
+- **Write-once.** It is stored in the registry write-once; a delivered BOM is not
+  edited in place.
+- **Inherits the weakest evidentiary status.** Evidence carries evidentiary-status
+  tags: `mock` (a fixture config export), `mock-plan` (derived from the real
+  terraform plan), and `attested-reference-mock` (a fixture attestation for a Track B
+  control). All three are non-evidentiary. The BOM inherits the weakest status present
+  across its evidence. The demo BOM is stamped `evidentiary_status=mock`:
+
+```
+[5/6 bom] cc29c2e11b5009883ec263b4593cf38d4864d972c7cb140f9bc7993382f77ca5 evidentiary_status=mock -> <dir>/bom.json
+```
+
+If any weak status is present, the whole BOM and SSP are stamped NON-EVIDENTIARY and
+are not submittable. There is no switch to remove that stamp while mock inputs are
+present.
+
+### The registry index
+
+The BOM does not live alone. The `registry/` directory is the write-once,
+content-addressed object store, plus a two-level index that resolves
+**contract to BOM to artifact hashes**. Given a contract, you find its BOM; given the
+BOM, you find every artifact hash it references, and every one of those resolves back
+to a stored object. That index is what makes proof by reproduction mechanical rather
+than manual.
+
+The full RDF named-graph dataset for the run is written to `engine.trig`, and a
+per-stage run-state summary to `run_state.json`.
+
+---
+
+## The SSP
+
+The **SSP** is written to `ssp.md`. It is the System Security Plan, the document a
+contractor submits. It is generated by `src/compliance_engine/documents/ssp.py`.
+
+### Deterministic and byte-stable
+
+The SSP is compiled from the **same dataset** the BOM records, so the two cannot
+disagree. Compilation is deterministic: the same inputs produce the same bytes every
+time. This byte-stability is what lets an assessor re-compile the SSP and confirm it
+matches, rather than eyeballing a hand-edited document.
+
+### The traceability matrix
+
+The centerpiece is the per-control **traceability matrix**, also called the **VCRM**.
+For each control it shows the requirement, the module and resource that claim it, the
+evidence, the oracle outcome, and the human attestation, in one row. A reader can
+trace any single control from the contractual requirement down to the specific
+evidence and the specific signature, and back up again.
+
+### The NON-EVIDENTIARY banner is structural
+
+When any input is mock, the SSP emits the **NON-EVIDENTIARY** banner structurally.
+It is part of how the document is compiled, not a flag someone remembered to set, and
+there is no switch to suppress it while mock inputs are present. The demo confirms it:
+
+```
+[6/6 ssp]
+SSP: wrote <dir>/ssp.md (NON-EVIDENTIARY banner: present)
+```
+
+A submittable SSP would be produced only from real, live evidence. Today every run is
+fixture-backed, so every SSP carries the banner honestly.
+
+---
+
+## Proof by reproduction
+
+The reason this beats a folder of screenshots is that an assessor does not have to
+trust the party that produced the delivery. Given a delivered BOM, an assessor (a
+**C3PAO**) can re-derive the whole record:
+
+1. **Resolve** every artifact by its hash from the registry.
+2. **Re-hash** each artifact and confirm the fingerprint matches the record. If one
+   byte changed, the hash will not match, and the tampering is caught.
+3. **Re-run** the plan-level checks to confirm the control-to-resource-to-evidence
    mapping and the oracle outcomes match what the BOM records.
 
-If every fingerprint matches, the delivery is exactly what was signed. The
-step-by-step version is in **[docs/AUDITOR-GUIDE.md](../AUDITOR-GUIDE.md)**.
+If every fingerprint matches and every re-run outcome agrees with the record, the
+delivery is exactly what was signed, and its checks reproduce. The step-by-step
+version, written for an assessor, is in
+[docs/AUDITOR-GUIDE.md](../AUDITOR-GUIDE.md).
+
+Note: reproduction confirms that the delivered record is internally consistent and
+untampered, and that its automated checks re-run to the same outcomes. It does not by
+itself make an organization compliant. A false claim can still pass the engine; the
+human signer carries the accountability, and the assessor's reproduction plus review
+is what catches it.
 
 ---
 
-### In one sentence
+## Summary
 
-The machine produces an **audit** (is the chain unbroken, and where does the human
-overrule the machine?), an **SPRS score** (computed over the ~22 required controls,
-not all 110), a content-addressed **BOM** (the tamper-evident proof file, stamped
-"mock" here), and a byte-stable **SSP** (the government document, which can't hide
-its NON-EVIDENTIARY banner) — all re-checkable by hash.
+A run produces two checks and two documents. The **audit** walks the evidence chain
+forward and backward, prints the proven-vs-attested split (4 MET-by-machine /
+18 MET-by-human-only in the all-covered demo), and lists contradictions separately so
+that a score of 110/Final with one contradiction cannot pass as clean. The **SPRS
+score** is 110 minus the weights of the not-met controls, banded into Final (110),
+Conditional (88 to 109, with a legal POA&M), or Ineligible (below 88), computed over
+the Order's 22 required controls rather than all 110, and gated by the POA&M-legality
+rule that only 1-point controls may be deferred. The **BOM** (`bom.json`) is the
+content-addressed, write-once, per-control record that inherits the weakest
+evidentiary status (`mock` in the demo), indexed contract-to-BOM-to-artifact in the
+registry. The **SSP** (`ssp.md`) is the deterministic, byte-stable government document
+compiled from that same dataset, whose VCRM traces every control end to end and whose
+NON-EVIDENTIARY banner is structural. And **proof by reproduction** lets an assessor
+resolve every artifact by hash, re-hash to confirm, and re-run the plan-level checks
+to independently confirm the record.
 
-### Next: [05 — Try it yourself](05-try-it.md)
+Next: [05-try-it.md](05-try-it.md)

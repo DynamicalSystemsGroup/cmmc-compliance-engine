@@ -1,37 +1,88 @@
-# The Compliance Engine, explained from scratch
+# The Compliance Engine: a plain-English tour
 
-**Start here.** This is a plain-English tour of what this system actually does —
-no prior knowledge of compliance, the cloud, or code needed. Read the docs in
-order; each one is short.
+This is a guided, chapter-by-chapter tour of what the Compliance Engine does, how it
+works, and what it does not yet do. It is written for two readers at once: compliance
+and operations staff who need to understand what the system produces and why they can
+trust it, and engineers who need to understand how it is built. The explanations stay
+plain enough to follow without a technical background, but precise enough to be correct.
 
-> ⚠ **This is a Phase-I prototype. Every run today is a mock / practice run.**
-> It uses fake (fixture) data and runs Terraform in preview mode only — nothing
-> is deployed to a real cloud, and no real credentials are used. Every document
-> it produces is stamped **NON-EVIDENTIARY** — a demonstration artifact, *not* a
-> real government submission. We say so plainly wherever it matters.
+## What this system is
+
+The Compliance Engine ingests a signed description of what a contract requires and a
+signed set of statements about how an organization satisfies each requirement, and it
+emits a System Security Plan (SSP), a Bill of Materials (BOM) of the supporting
+evidence, and a Supplier Performance Risk System (SPRS) score. Every automated check,
+every piece of evidence, and every human sign-off is content-addressed and cross-linked,
+and no requirement is recorded as met until a named, role-appropriate human signs a
+statement to that effect.
+
+It targets CMMC Level 2: the 110 security controls of NIST SP 800-171 Rev. 2, required
+of U.S. defense contractors that handle Controlled Unclassified Information (CUI). It is
+written in Python over an RDF named-graph store, drives real Terraform at plan level, and
+produces byte-deterministic output from a given set of inputs.
+
+## The two big ideas
+
+Two ideas run through the whole tour. Neither is optional; both should come through in
+every chapter that touches them.
+
+1. **Provisioning and proving are the same action.** The environment is described by a
+   signed Order, and the proof of compliance is produced from that same description, not
+   gathered afterward by inspection.
+
+2. **The attested-reference model.** Every control points at an authoritative source
+   (the place where the truth of that control actually lives). The engine checks that a
+   reference into that source is registered, resolves, is within its freshness window,
+   and is signed by a human in the required role. This uniform check applies equally to a
+   control a machine can measure and a control only a human can attest, which is what lets
+   the engine cover all 110 controls rather than only the machine-measurable ones.
+
+The catalog has 110 controls, and all 110 now have a claiming module. They split into 65
+machine-verified, 43 attested-reference, and 2 CSP-inherited, across 39 modules total.
 
 ## Reading order
 
-1. **[00 — What is this?](00-what-is-this.md)** — The big picture in one sitting:
-   the problem, the one big idea, the two machines, and the two safety gates.
-2. **[01 — The Order](01-the-order.md)** — How a contract becomes a signed
-   "build order" (the *Order Compiler*), and the first safety gate.
-3. **[02 — The Factory](02-the-factory.md)** — How the Order gets executed:
-   plan the environment, check it, gather evidence, run automated checks.
-4. **[03 — Machines vs. humans](03-machine-vs-human.md)** — The golden rule:
-   machines gather evidence, but only a human can declare a rule "met."
-5. **[04 — The proof](04-the-proof.md)** — What comes out: the BOM, the SSP, the
-   SPRS score, and how it's all fingerprinted so it can't be quietly altered.
-6. **[05 — Try it yourself](05-try-it.md)** — Run the demo in one command and
-   see each artifact appear.
-7. **[06 — Glossary](06-glossary.md)** — Every jargon word in one place.
+Read the chapters in order. Each builds on the one before it.
 
-**[06 — Glossary](06-glossary.md) can be read at any time** — jump to it whenever
-a word is unfamiliar. The other docs link to it on first use.
+1. [00-what-is-this.md](00-what-is-this.md) — The problem, the two big ideas, the
+   110-control coverage picture, the two machines, the two gates, and the honest limits.
+2. [01-the-order.md](01-the-order.md) — The Order Compiler and Gate 1: how a contract
+   becomes obligations, then a required-control set, then modules, then a signed Order.
+3. [02-the-factory.md](02-the-factory.md) — The runtime pipeline: load the Order, fetch
+   each module, run a real terraform plan, apply the policy and residency gate, run a
+   mock apply, collect evidence, and run the oracles.
+4. [03-machine-vs-human.md](03-machine-vs-human.md) — How a control becomes MET: the
+   founding principle, verification versus validation, the attested-reference model in
+   full, the oracle outcomes, and the contradiction guard.
+5. [04-the-proof.md](04-the-proof.md) — The outputs (audit, SPRS, BOM, SSP) and proof by
+   reproduction: how an assessor re-derives every result from the delivered BOM.
+6. [05-try-it.md](05-try-it.md) — Run the three demo scenarios and read the exact output.
+7. [06-glossary.md](06-glossary.md) — Every term used in the tour, A to Z.
 
-## In one sentence
+The glossary at [06-glossary.md](06-glossary.md) can be read at any time. Jump to it
+whenever a term is unfamiliar; the other chapters link to it on first use of a term.
 
-A machine that **builds a secure cloud environment and produces the proof that
-it's compliant as the same action** — shown here as a fully-wired mock run.
+## Honest limits
 
-**Next: [00 — What is this?](00-what-is-this.md)**
+State these plainly before you start, so nothing here is mistaken for a finished product.
+Chapter [00-what-is-this.md](00-what-is-this.md) covers each in detail.
+
+- Every run today is non-evidentiary: evidence is fixture-backed and the terraform plan
+  uses mock providers, so no run produces a submittable government artifact. When any weak
+  input is present, the BOM and SSP are stamped NON-EVIDENTIARY, and there is no switch to
+  remove that banner while mock inputs are present.
+- The engine records claims; it does not make an organization compliant. A false claim
+  still passes here. The human signer carries the accountability, and an assessor catches it.
+- References are not resolved live yet, attestations are not cryptographically signed yet,
+  and the engine does not talk to SPRS: a human files the computed score at the government
+  portal.
+- The 16 policy documents shipped under `src/compliance_engine/documents/policies/` are
+  scaffolding and must be replaced with an organization's own adopted policies.
+
+## A note for technical readers
+
+This tour is the plain-English path into the system. The repository root README covers the
+same system comprehensively for a technical reader, and the chapters here link into the
+code as they go.
+
+To begin the tour, read [00-what-is-this.md](00-what-is-this.md).

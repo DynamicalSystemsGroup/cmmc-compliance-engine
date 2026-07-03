@@ -1,206 +1,207 @@
-# 02 · The Factory — how the environment gets built and checked
+# The Factory (the runtime)
 
-*Part of the v1 plain-English tour. Previous: [01 · The Order](01-the-order.md).*
+The second machine is the runtime, called the **Factory** in the code. It takes a
+single signed Order — the output of the Order Compiler described in
+[01-the-order.md](01-the-order.md) — and executes it through a fixed sequence of
+stages. Along the way it provisions the described environment (at plan level),
+gathers machine-readable facts, and runs automated checks. What it produces is a
+**run record**, not a verdict.
 
----
+That distinction is the whole point of this chapter, so it is worth stating plainly
+up front: the Factory never says a control is met. It provisions, it collects
+evidence, and it records automated check results. Whether a control is actually met
+is decided later, by a human signature, and that step is covered in
+[03-machine-vs-human.md](03-machine-vs-human.md). Everything the Factory does is
+recorded and content-addressed so that the human deciding, and the assessor checking
+the human, can trace each fact back to where it came from.
 
-## Why this exists (the one big idea)
+New terms in this chapter — Order, module, oracle, evidence, evidentiary status,
+residency gate, PipelineState — are all defined in
+[06-glossary.md](06-glossary.md).
 
-Most compliance works like this: someone sets up a system, then *later* an auditor
-walks around with a checklist asking "is this secure? is that encrypted?" and
-writes down what they're told.
+## What the Factory is for
 
-This system flips it. **The environment is *built* from a signed plan, and the act
-of building it *is* the proof.** There's no separate "now go prove it" step —
-proving happens *because* you built it from a checkable recipe.
+The Factory's job is to run the signed Order to completion and emit a faithful
+record of what happened at each stage. It is the runtime half of the system's first
+big idea: **provisioning and proving are the same action.** The environment is
+described by a signed Order, and the proof of compliance is produced from that same
+description — not gathered afterward by walking around and inspecting a running
+system. The Factory is where "produced from the same description" actually happens.
 
-The **Factory** is the part that does that building-and-checking. It takes the
-signed **Order** (the recipe produced in [doc 01](01-the-order.md)) and runs it
-through an assembly line of stages. Think of a real factory line: the raw
-materials come in one end (the Order), each station does one job, and a record of
-everything follows the product down the belt.
+Because of that, the Factory is deliberately not a judge. It records **automatic
+assertions** (the results of automated checks) and it binds **evidence** to the
+controls that evidence is about. It does not, and cannot, mark a control met. In the
+data model, evidence only ever *addresses* a control; only a human attestation
+*attests* it, and that rule is enforced in the graph, not by convention. So even at
+its most successful, a Factory run hands off a set of facts and check results for a
+human to judge.
 
-> **Order** = a signed file that lists exactly which security controls this
-> project must meet and which cloud-setup "modules" are supposed to meet them.
-> (Full definition in [06 · Glossary](06-glossary.md).)
+The runtime lives under `src/compliance_engine/pipeline/` (`runner.py`,
+`dataset.py`, `state.py`, `registry.py`, and the `provision/`, `backends/`, and
+`evidence/` subpackages).
 
-One thing to hold onto from the very start: **the Factory does not decide whether
-anything "passed."** It *builds*, *gathers facts*, and *runs automated checks*.
-The final "yes, this is genuinely met" call belongs to a human — that's
-[doc 03](03-machine-vs-human.md).
+## The stages, in order
 
----
+The Factory runs the Order through the following stages in sequence. Each stage
+writes into the run record, and a failure in an early stage can halt the run before
+later stages execute.
 
-## The assembly line, stage by stage
+1. **Load the Order.** The Factory reads the signed Order and **recomputes its
+   hashes, then re-checks them against the hashes recorded in the Order.** If any
+   recomputed hash does not match, the run stops immediately. This is a tamper check:
+   the Order was fingerprinted with SHA-256 when the Order Compiler emitted it (see
+   [01-the-order.md](01-the-order.md)), and if a single byte changed in between, the
+   fingerprints no longer match and the Factory refuses to build from it.
 
-Here's the whole line. Then we'll walk each station.
+2. **Fetch the modules by hash.** The Order names each module it needs by hash. The
+   Factory resolves each one out of the write-once, content-addressed object store by
+   that hash. Fetching by hash rather than by name means the Factory gets exactly the
+   module the Order committed to, and any substitution is caught because the hash
+   would not resolve.
 
-```
-  signed ORDER
-      │
-      ▼
-  1. Load the Order      ── re-check the fingerprints (tamper check)
-  2. Fetch the modules   ── pull each cloud-setup module, by fingerprint
-  3. Plan                ── REAL terraform dry-run (no cloud touched)
-  4. Policy check        ── inspect the plan; a violation HALTS the line
-  5. Apply (pretend)     ── simulated build (real build is Phase II)
-  6. Collect evidence    ── gather machine-readable facts about the setup
-  7. Run the oracles     ── automated pass / fail / can't-tell checks
-      │
-      ▼
-  a run record (everything that happened) → handed to a human
-```
+3. **Plan.** The Factory runs a **real `terraform plan`** against the real
+   infrastructure-as-code under `infrastructure/terraform/tier1/` — but with **mock
+   providers**: no cloud is contacted, no credentials are used, and nothing is
+   deployed.
 
-### 1. Load the Order — "is this the real, untampered plan?"
+   To make sense of this, it helps to separate two Terraform actions. A
+   `terraform plan` computes what *would* change — it reads the desired
+   configuration, compares it against current state, and produces a concrete,
+   inspectable description of the resources and settings that an apply would create
+   or modify. A `terraform apply` is the step that *actually makes those changes* in
+   the real world. Plan is "here is exactly what I would do"; apply is "now do it."
 
-The Order arrived as a file with **fingerprints** on it. A fingerprint here is a
-**SHA-256 hash**: run a file's bytes through a standard math function and you get a
-short string that changes completely if even one byte changes. (Think of it as a
-wax seal that visibly cracks if someone opened the envelope.)
+   A **mock provider** stands in for the real cloud provider plugin. A normal
+   provider (for example, the cloud vendor's provider) is the piece that would talk to
+   the live cloud API to read and write real resources. A mock provider satisfies the
+   same interface so that `terraform plan` runs and produces a real, structured plan,
+   but it answers locally instead of reaching out — so the plan is genuine while no
+   cloud is touched, no credentials are needed, and nothing is created. The result is
+   a real plan document describing the intended environment, produced offline.
 
-The Factory doesn't *trust* the fingerprints on the Order — it **re-computes them
-itself** from the Order's contents and checks they match. If the recomputed hash
-doesn't equal the one written in the Order, the Factory stops immediately with an
-"Order tampered" error. (In the code: `run_stage_load_order` recomputes the order
-hash and raises `OrderVerificationError` on a mismatch.)
+4. **Policy check and the residency hard gate.** The Factory runs a policy-as-code
+   check that **reads the real plan produced in the previous stage.** Inside that
+   check is a **data-residency hard gate**. The gate **halts the run before apply if
+   any planned region is non-US, or if the plan carries no region signal at all.**
+   Both conditions fail closed: a region outside the United States is a violation, and
+   a plan that cannot even be shown to be in-region is treated as a violation too, so
+   silence is never mistaken for compliance.
 
-**Why it matters:** nobody can quietly edit the recipe after it was signed.
+   Why read the real plan instead of a checkbox? Because that is what
+   provision-equals-prove means in practice. A checkbox that says "US region: yes" is
+   an assertion *about* the environment that can drift away from the environment. The
+   residency gate instead reads the same plan the environment would actually be built
+   from, so the thing being checked and the thing being built are one and the same
+   artifact. If the plan does not clearly put every region in the United States, the
+   run stops here, before anything is applied.
 
-### 2. Fetch the modules — "get the exact building blocks named in the Order"
+5. **Apply.** Today this stage is a **mock apply**; a **live `terraform apply` is
+   deferred** (planned, not built yet). The mock apply advances the run through the
+   stage that would, in a future version, actually create resources — but in the
+   current system nothing is deployed. This is consistent with the honest limits
+   below: every run today is offline and non-evidentiary.
 
-The Order references a set of **modules** — reusable chunks of cloud setup (e.g.
-"turn on multi-factor login for the sensitive-data group," "encrypt stored data").
-Each module has its own fingerprint. The Factory pulls each one and **re-derives
-its hash**, comparing it to what the Order expected. Wrong hash → wrong or altered
-module → stop.
+6. **Collect evidence.** The Factory gathers **evidence** — machine-readable facts
+   that **address** controls. It is important to hold the line here: evidence points
+   at the controls it is relevant to; it never marks them met. Marking a control met
+   requires a human attestation, which is a separate machine and a separate chapter
+   ([03-machine-vs-human.md](03-machine-vs-human.md)).
 
-**Why it matters:** you're building from *exactly* the blocks the plan promised,
-not a lookalike.
+   Every piece of evidence carries an **evidentiary-status** stamp that says how
+   trustworthy the underlying fact is. Today there are three stamps, and all three are
+   non-evidentiary:
 
-### 3. Plan — the real Terraform part (and the honest catch)
+   - **`mock`** — a fixture configuration export (a stand-in config fact, not a real
+     one).
+   - **`mock-plan`** — derived from the real `terraform plan` (a real plan, but the
+     plan itself came from mock providers).
+   - **`attested-reference-mock`** — a fixture attestation standing in for a policy
+     control (a Track B control; see the evidence-set table below and
+     [03-machine-vs-human.md](03-machine-vs-human.md)).
 
-This is the stage people most often misunderstand, so plainly:
+   The rule on these stamps is strict: **if any weak stamp is present anywhere in the
+   run, the whole BOM and SSP are stamped `NON-EVIDENTIARY` and are not submittable.**
+   The run inherits the weakest status it contains. There is no switch to remove the
+   banner while mock inputs are present — the only way to earn a submittable artifact
+   is to feed the Factory real evidence, which the current system does not yet do.
 
-**Terraform** is an industry-standard tool that lets you write cloud setup *as
-code* — a text description of "I want a login policy here, an encryption key
-there." Instead of clicking around a cloud console, you write it down. Terraform
-can then either **`plan`** (a *dry run*: "here's exactly what I *would* create or
-change") or **`apply`** ("actually go do it").
+7. **Run the oracles.** Finally, the Factory runs the **oracles** — the automated
+   checks — over the collected evidence. Two kinds are in play here:
 
-The Factory runs a **real `terraform plan`** on **real infrastructure-as-code**
-(the files under `terraform/tier1/` — IAM, KMS/encryption, logging, org-policy,
-Workspace) and reads back the machine-readable result (`terraform show -json`).
+   - **config-check oracles** for the machine-measurable controls (the 65
+     machine-verified controls), which read a config-level fact and decide whether it
+     meets the rule.
+   - the **attested-reference oracle** for the policy-and-records controls (the 43
+     attested-reference controls), which checks that a reference into an authoritative
+     source is registered, resolves, is fresh, and is signed by a human in the
+     required role.
 
-**The honest catch — read this carefully:** it runs with **mock providers**. A
-"provider" is the plug-in that talks to a specific cloud (Google, AWS, …). A
-*mock* provider is a stand-in that answers as if a cloud were there but **never
-connects to one**. So the plan is computed for real, but:
-
-- **no real cloud is contacted**,
-- **no credentials are used** (the code literally feeds a fake token like
-  `mock-plan-no-cloud`),
-- **nothing is deployed.**
-
-You get a genuine, detailed preview of *what would be built* — without building
-anything. That preview is the raw material the safety check reads next.
-
-### 4. Policy check — the safety valve ("provision = prove")
-
-Now the Factory inspects that **real plan** for rule violations — for example, is
-any data being placed in a **non-US region**? (US-only data residency is a real
-requirement for this contract.)
-
-If the plan violates policy, the Factory **halts right here — before "apply."**
-Nothing downstream runs. (In the code: `run_stage_policycheck` calls
-`state.halt(...)` on failure, "halting before Apply.")
-
-**This is the heart of "provision = prove."** The check reads the *actual build
-plan the machine produced*, not a human ticking a box that says "yes we're
-US-only." The plan either shows a compliant setup or it doesn't. A wrong plan can't
-sneak past by being described nicely.
-
-### 5. Apply — pretend, for now
-
-In the finished Phase-II system, "apply" would take the approved plan and **build
-the live environment**. Today it's a **mock apply**: a simulated version that lets
-the rest of the line run end-to-end without standing up real cloud infrastructure.
-So no real environment exists yet — this is a rehearsal of the full assembly line.
-
-### 6. Collect evidence — "gather the facts"
-
-**Evidence** = small machine-readable facts about the environment: *Is multi-factor
-login on? Is stored data encrypted? Which region is the data in? How many
-over-privileged accounts are there?*
-
-Today these facts come from **fixture files** — hand-written mock data that stands
-in for what a real cloud would report. Because the facts are mock, every piece of
-evidence is stamped as non-real. There are actually **two** such stamps:
-
-- **`mock`** — a fixture "config export" (pretend cloud settings).
-- **`mock-plan`** — evidence derived from the real-but-mock-provider Terraform plan
-  (stage 3). It proves *the plan*, not a live system — so it's still not real
-  evidence.
-
-Any run containing either stamp is flagged **NON-EVIDENTIARY** all the way through
-to the final documents. That's the system refusing to let a rehearsal be mistaken
-for the real thing. (More on the outputs in
-[04 · The proof](04-the-proof.md).)
-
-Crucially, each piece of evidence **points at** the control(s) it's about — it
-"addresses" a control. It does **not** say the control is *met*. Hold that thought;
-it's the whole subject of [doc 03](03-machine-vs-human.md).
-
-### 7. Run the oracles — automated checks
-
-An **oracle** is a tiny automated test: it reads *one* fact and compares it to
-*one* rule, then says **pass**, **fail**, or **can't tell**. Example: the MFA
-oracle reads `mfa_enforced_privileged` and passes only if it's `true`.
-
-Only **7** controls in this whole system have an oracle (MFA, FIPS encryption,
-encryption-at-rest, unauthorized-principals, IAM-count, log-export, US-region).
-Every other control has **no** machine test — the oracle honestly returns
-**can't tell**. That's not a bug; it's the system refusing to fake a check it can't
-actually run. The full explanation — and why "can't tell" is the honest answer —
-is [doc 03](03-machine-vs-human.md).
-
----
+   Each oracle returns one of four outcomes: **`passed`**, **`failed`**,
+   **`cantTell`** (genuinely unknowable), or **`needsAction`** (a concrete, actionable
+   gap that always carries a reason). These outcomes are recorded as automatic
+   assertions in the run record. The full mechanics of the attested-reference oracle —
+   its decision sequence, its roles, and its specific failure reasons — belong to
+   [03-machine-vs-human.md](03-machine-vs-human.md); here it is enough to know the
+   Factory runs it and records what it returns.
 
 ## What comes out: a run record, not a verdict
 
-Everything above is collected into one **run record** (in the code, a
-`PipelineState`): which modules were fetched, the plan result, whether the policy
-gate halted, every evidence fact, every oracle outcome.
+When the stages complete, the Factory produces a **run record** — in the code, a
+**PipelineState** — summarized per stage in `run_state.json`. The run record captures
+what was loaded, what was planned, what evidence was collected and with what stamps,
+and what every oracle returned. It also carries the full RDF named-graph dataset for
+the run (`engine.trig`) so the whole run is traceable.
 
-Notice what's *missing* from that list: any statement that a control is **MET**.
-The Factory deliberately **does not** make that call. It assembles the facts and a
-tidy record — then hands the whole thing to a human to judge. That hand-off is the
-next doc.
+What the run record does **not** contain is any statement that a control is met. No
+Factory stage writes "MET" for any control. That word only enters the record later,
+when a named, role-appropriate human signs an attestation — the step covered in
+[03-machine-vs-human.md](03-machine-vs-human.md) — and it is confirmed at BOM close by
+Gate 2, described in [04-the-proof.md](04-the-proof.md). The Factory hands the human a
+complete, fingerprinted set of facts and check results, and stops there.
 
----
+## The three evidence-set worlds
 
-## Three "what-if" runs you can try
+The demo runs the Factory against three different **evidence sets**, selected with the
+`--evidence-set` flag. Each one simulates a different situation. Note one important
+subtlety: the **`gap`** world never reaches the Factory at all — it is refused by
+**Gate 1** inside the Order Compiler, before any Order is emitted, so the runtime does
+not start.
 
-The demo (`cli.py demo`, see [05 · Try it](05-try-it.md)) has a
-`--evidence-set` switch that feeds the Factory three different fixture worlds:
-
-| `--evidence-set` | What it simulates | What the Factory does |
+| Evidence set | What it simulates | What the runtime does |
 | --- | --- | --- |
-| `all-covered` | every required control has good evidence | line runs to the end; a clean run record |
-| `gap` | a required control has **no module claiming it** | the *Order* is refused at Gate 1 (before the Factory even starts) — the line never runs |
-| `contradiction` | a control's evidence makes its oracle **fail**, yet it's still attested MET | line runs, but the conflict gets flagged later (see doc 03) |
+| `all-covered` | A complete, well-formed run: every required control has a claiming module and supporting evidence. | The Factory runs all stages end to end, collects evidence, and records oracle outcomes. The run is stamped `NON-EVIDENTIARY` because inputs are mock. |
+| `gap` | A missing-coverage situation. Because all 110 real catalog controls now have a claiming module, a genuine "required but unclaimed" gap cannot occur with a real control, so this injects a fake, non-catalog control id (`XX.L2-3.99.99`). | The runtime never starts. The catalog validator rejects the fake id and **Gate 1 refuses to emit the Order.** The lesson is the one Gate 1 always enforces: the compiler refuses to emit an Order it cannot fully cover, and names the problem. |
+| `contradiction` | A control marked met by a human while its machine oracle failed, with no written override justification. | The Factory runs normally and collects evidence and oracle outcomes. The failed oracle result is recorded faithfully, which is what lets the later audit surface the contradiction (see [04-the-proof.md](04-the-proof.md)) instead of hiding it. |
 
-These aren't three different programs — they're the same Factory fed three
-different fact-worlds, so you can watch it behave honestly in each.
+The exact commands and full terminal output for all three worlds are in
+[05-try-it.md](05-try-it.md).
 
----
+## Honest limits of the Factory today
 
-## In one sentence
+State these plainly, because they bound everything above:
 
-The Factory takes the signed Order, re-checks its fingerprints, runs a **real**
-(but cloud-free, mock-provider) Terraform plan, **halts** if that plan breaks
-policy, gathers machine-readable (today: mock) facts, runs the 7 automated oracle
-checks, and packages it all into a run record — **without ever declaring a control
-"met."**
+- **Every run today is non-evidentiary.** Evidence is fixture-backed
+  (`fixtures/nv012/`) and the `terraform plan` runs against mock providers. Nothing a
+  run produces is a submittable government artifact.
+- **The live apply is deferred.** The apply stage is a mock apply; no resources are
+  ever deployed.
+- **The Factory records claims; it does not make an organization compliant.** It
+  provisions and gathers facts. A control is only met when a human signs, and that
+  human — not the Factory — carries the accountability.
 
-**Next:** [03 · Machines check, only humans certify](03-machine-vs-human.md) — the
-single most important idea in the whole system.
+## Summary
+
+The Factory is the runtime that consumes one signed Order and drives it through a
+fixed sequence of stages: load and re-hash the Order as a tamper check, fetch its
+modules by hash, run a real `terraform plan` under mock providers so no cloud is
+touched, run a policy check whose data-residency hard gate reads that real plan and
+halts before apply on any non-US or region-less plan, run a mock apply, collect
+evidence that only *addresses* controls, and run the config-check and
+attested-reference oracles to record `passed` / `failed` / `cantTell` / `needsAction`
+outcomes. Because inputs are fixture-backed and providers are mock, every stamp is
+weak and the whole run comes out `NON-EVIDENTIARY`. What the Factory emits is a run
+record (a PipelineState summarized in `run_state.json`, with the full dataset in
+`engine.trig`) — a complete, fingerprinted set of facts and check results, and
+deliberately not a statement that any control is met.
+
+Next: [03-machine-vs-human.md](03-machine-vs-human.md)

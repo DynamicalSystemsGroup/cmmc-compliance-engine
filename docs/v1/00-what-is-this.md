@@ -1,110 +1,243 @@
 # 00 — What is this?
 
-## The problem, in plain words
+This is the first stop on a plain-English tour of the Compliance Engine. It gives
+you the whole picture in one sitting: the problem the engine solves, the two ideas
+at its core, what it covers, how it is built out of two machines with a clean seam
+between them, the two gates that keep it honest, and an unvarnished list of its
+current limits. Later chapters go deep on each part. If a term is unfamiliar, the
+[glossary](06-glossary.md) defines every one of them.
 
-If a company wants to handle the US Department of Defense's sensitive
-information — the kind that isn't secret but still shouldn't leak, called
-**CUI** (Controlled Unclassified Information) — it has to follow a big checklist
-of security rules. The checklist is **CMMC Level 2**, which is built from a
-government standard called **NIST SP 800-171**. It has about **110 rules**
-(things like "require multi-factor login" or "encrypt sensitive data").
+In one line: the Compliance Engine ingests a signed description of what a contract
+requires and a signed set of statements about how an organization satisfies each
+requirement, and it emits a System Security Plan, a Bill of Materials of the
+supporting evidence, and a Supplier Performance Risk System (SPRS) score. Every automated check, every piece of
+evidence, and every human sign-off is content-addressed and cross-linked, and no
+requirement is recorded as met until a named, role-appropriate human signs a
+statement to that effect.
 
-> **CUI, CMMC, NIST 800-171, control** → see [glossary](06-glossary.md).
+## The problem, in plain terms
 
-Here's the painful part: today, _proving_ you follow those rules is mostly
-manual. People take screenshots of settings, fill in spreadsheets, and assemble
-a giant binder for an auditor. It's slow, error-prone, and goes stale the moment
-someone changes a setting.
+A U.S. defense contractor that handles the government's sensitive-but-unclassified
+information must prove it runs a secure operation. That information is called
+[Controlled Unclassified Information (CUI)](06-glossary.md): data that is not
+classified as secret but is still restricted and must not leak. To handle it, a
+contractor has to meet a security standard.
 
-## The one big idea
+The standard here is [CMMC](06-glossary.md) Level 2, which is defined as the 110
+security [controls](06-glossary.md) of [NIST SP 800-171](06-glossary.md) Rev. 2. A
+control is a single required security practice — for example, requiring multi-factor
+authentication for privileged access, or keeping audit logs, or having a written and
+tested incident-response plan. There are 110 of them, and they range from settings a
+computer can measure to policies and records that only a person can vouch for.
 
-> **Building the secure environment and proving it's compliant are the SAME
-> action.**
+Proving you meet those controls produces two artifacts an assessor expects to see:
 
-**Analogy.** Imagine a factory that builds a product. Instead of building it and
-_then_ sending an inspector around later, this factory stamps a **certificate of
-authenticity as a byproduct of building the product** — the certificate is
-produced by the same machine, from the same steps, at the same time. If the
-build changes, the certificate changes with it. You can't have one without the
-other.
+- A [System Security Plan (SSP)](06-glossary.md): the document that describes, control
+  by control, how the organization satisfies each requirement.
+- A [Supplier Performance Risk System (SPRS)](06-glossary.md) score: a single number,
+  filed at a government portal, that summarizes how many of the required controls are
+  met, weighted by importance.
 
-That's what this system does for cloud security setups. Compliance isn't
-gathered _after_ the fact by inspecting an existing setup — it's a **byproduct of
-building the setup in the first place.**
+Here is the painful part today. That proof is assembled by hand. People take
+screenshots of settings, fill in spreadsheets, and stitch together a binder for an
+auditor. It is slow, error-prone, and it goes stale the moment someone changes a
+setting after the screenshot was taken. The paper says one thing; the live system
+may already say another. The Compliance Engine exists to close that gap.
+
+## The two big ideas
+
+Two ideas do the real work in this system. Neither is optional; both should be in
+your head before you read further.
+
+### 1. Provisioning and proving are the same action
+
+The environment is described by a signed [Order](06-glossary.md), and the proof of
+compliance is produced from that same description — not gathered afterward by
+inspection. You do not build the environment and then, weeks later, send someone
+around to document what got built. The description of what must be true and the
+proof that it is true come from one source, produced in one connected action. If the
+description changes, the proof changes with it. There is no window in which the
+binder and the live system are allowed to drift apart, because they are not two
+separate things.
+
+### 2. The attested-reference model
+
+This is the idea that lets the engine cover all 110 controls rather than only the
+ones a machine can measure, so it deserves real weight here.
+
+Every control points at an *authoritative source*: the place where the truth of that
+control actually lives. For a firewall rule, that is a cloud API. For security-awareness
+training, it is a learning-management system. For personnel records, it is an HR
+system. For a written policy, it is a document repository. For a control proven by the
+engine's own past runs, it is the engine's run history. The authoritative source is the
+system that owns the ground truth for a whole class of evidence.
+
+Each control then carries a *reference* into that source: a resolvable pointer with a
+URI, a freshness window (how long the reference stays valid before it must be
+re-verified), a last-verified timestamp, and a named custodian. And each control names
+a required attestation *role* — which kind of official must sign it.
+
+The engine applies one uniform check to every control. It confirms that the reference
+is registered, that it resolves, that it is within its freshness window, and that it is
+signed by a human in the required role. That same four-part check works identically
+whether the control is something a machine can measure (a firewall setting) or
+something only a human can attest (a tested incident-response plan). Because the check
+does not depend on the control being machine-measurable, the engine can cover the
+policy-and-records controls on equal footing with the technical ones. That is what
+takes coverage from "the machine-measurable subset" to all 110.
+
+> These two ideas are the point of the system. Everything else — the two machines,
+> the two gates, the outputs — exists to carry them out faithfully.
+
+## What it covers: 110 controls, all now claimed
+
+The control catalog holds 110 controls, and every one of them now has a claiming
+module — a unit of the engine that takes responsibility for the control and names how
+it will be verified. There are 39 modules in total. The controls split across three
+verification kinds:
+
+| Verification kind | Controls | What it means |
+|---|---|---|
+| Machine-verified (config-check oracle) | 65 | The control is measured directly from configuration. |
+| Attested-reference | 43 | A registered, fresh, signed reference into an authoritative source. |
+| CSP-inherited | 2 | Satisfied by the cloud service provider and inherited. |
+| **Total** | **110** | |
+
+The modules group into three sets:
+
+- **Baseline (Tier 1)**: 10 modules covering 22 controls — 20 machine-verified plus
+  the 2 inherited.
+- **Track A (machine)**: 13 modules covering 45 controls. These are the technical
+  controls — for example VPC segmentation, endpoint detection, mobile-device
+  management, Security Command Center, Workspace admin policy, BeyondCorp remote
+  access, GitHub change management, operations MFA, Cloud Logging, Binary Authorization
+  allowlisting, session control, VPC Service Controls, and IAM privileged-use.
+- **Track B (attested-reference)**: 16 modules covering 43 controls. These are the
+  policy-and-records controls — training, incident response, risk assessment,
+  personnel security, configuration management, maintenance, media protection, audit
+  procedure, security engineering, remote-access authorization, physical access,
+  collaborative computing, separation of duties, continuous monitoring, and login
+  banner.
+
+The structural model claims all 110 controls. The shipped demonstration contract,
+[NV012](06-glossary.md), exercises a 22-control slice of that model — a manageable,
+runnable subset for the demo. When the demo computes an SPRS score, it scores over the
+Order's 22 required controls, not all 110. Keep that distinction in mind: the model is
+built for 110; the demo runs 22.
 
 ## The two machines and the hand-off
 
-The system is two separate machines that pass a single file between them:
+The engine is two separate machines that pass a single file between them.
 
-```
-   A contract (with security requirements)
-            │
-            ▼
-   ┌──────────────────────┐        ┌──────────────────────┐
-   │   ORDER COMPILER      │  the   │      THE FACTORY      │
-   │  turns the contract   │ signed │  executes the Order:  │
-   │  into a signed build  │ Order  │  build it + gather    │
-   │  "Order"              │ ─────► │  the proof            │
-   └──────────────────────┘  file  └──────────────────────┘
-       "what must be true"            "make it true + prove it"
-```
+The first machine is the **Order Compiler** (upstream). It reads a contract and
+produces a signed Order. The flow inside it is:
 
-1. **The Order Compiler** reads a contract and turns it into a **signed Order** —
-   a precise, tamper-evident "build order" that says exactly which security rules
-   this environment must satisfy and which pieces of cloud setup will satisfy
-   them. (Details in **[01 — The Order](01-the-order.md)**.)
-2. **The Factory** takes that Order and executes it: it plans the environment,
-   checks it against policy, gathers evidence, and runs automated checks.
-   (Details in **[02 — The Factory](02-the-factory.md)**.)
+- A contract comes in.
+- Software drafts the contract's obligations, and a [Compliance Officer](06-glossary.md)
+  attests them.
+- A rule library turns those obligations into the required-control set.
+- Gate 1 checks that the plan fully covers that set (described below).
+- If Gate 1 passes, the Order Compiler emits a signed Order.
 
-The **Order file** is the only thing that passes between them. The Factory
-doesn't care how the Order was written; it just executes it. This clean seam is
-deliberate.
+"Signed" here means hash-referenced: the Order is fixed to a [SHA-256](06-glossary.md)
+fingerprint so any later change is detectable. True cryptographic signing
+(Sigstore/cosign) is future work. One safety property is worth naming now: a CUI or
+ITAR deliverable cannot silently drop a requirement. A spillover guard forces human
+review instead of quietly dropping controls.
 
-> **Order, module, evidence, oracle, attestation, BOM, SSP** → see
-> [glossary](06-glossary.md).
+The second machine is the **Runtime**, called "the Factory" in the code (downstream).
+It consumes a signed Order and runs it through stages: load the Order and re-check its
+hashes, fetch each module by hash, run a real terraform plan (with mock providers, so
+no cloud is contacted, no credentials are used, and nothing is deployed), run a
+policy-as-code check that includes a data-residency hard gate, run a mock apply (a live
+apply is deferred), collect evidence, and run the [oracles](06-glossary.md).
 
-## The two safety gates
+The clean seam between the two machines is deliberate. The **Order** is the only thing
+that passes between them. The Order Compiler decides *what must be true*; the Runtime
+makes it true and proves it. The Runtime does not care how the Order was written — it
+just executes it. That separation lets each machine be reasoned about, and audited, on
+its own.
 
-The system refuses to fool itself. Two "gates" must pass:
+> Provisioning and proving are the same action precisely because these two machines
+> share one Order: the Order describes the environment, and the Runtime produces the
+> proof from that same Order.
 
-- **Gate 1 — before anything is built:** _"Don't start unless the plan actually
-  covers every required rule."_ Every required rule must have a piece of setup
-  claiming to satisfy it, every piece of setup must trace back to a required
-  rule, and every claim must be testable. If something's missing, **the Order is
-  refused and names exactly what's missing** — nothing gets built.
-- **Gate 2 — at the end:** _"A rule only counts as MET when a responsible human
-  signs off, backed by evidence."_ A machine can gather evidence and run checks,
-  but it can **never** declare a rule satisfied. Only a human — the Affirming
-  Official — does that, and they carry the legal accountability. (More in
-  **[03 — Machines vs. humans](03-machine-vs-human.md)**.)
+## The two gates
 
-Gate 1 is a promise ("the plan covers everything"). Gate 2 is the receipt ("and
-we actually did it, and a human vouches for it").
+The engine refuses to fool itself. Two gates must pass, one in each machine.
 
-## The honesty line (read this)
+**Gate 1 — planning coverage.** This runs in the Order Compiler, before anything is
+built. It enforces three things: *forward* (every required control has at least one
+claiming module), *backward* (every included module traces back to a required control),
+and *no untestable claim* (every claiming module names a verification method). If any
+of these fails, the Order is not emitted and the specific gap is named. Nothing gets
+built on an incomplete plan. The code is
+`src/compliance_engine/order_compiler/gate1.py`.
 
-This is a **Phase-I prototype**, and it's important to be straight about what's
-real:
+**Gate 2 — proven fulfillment.** This runs in the Runtime, at the point the Bill of
+Materials is closed. A control is recorded as met only when its evidence passes its
+oracle *and* a human attests it in the required role. The Bill of Materials'
+control-mapping is then audited against the Order's required set, forward and backward,
+so the proof matches the plan in both directions. The code is
+`src/compliance_engine/traceability/audit.py`.
 
-- **Everything runs on fake (mock) data.** The evidence comes from example files
-  in the repo, not a live cloud.
-- **Terraform runs in preview (plan) mode only, with mock providers.** Terraform
-  is the tool that would normally build cloud infrastructure — here it only
-  _describes_ what it would build. **Nothing is deployed. No cloud account. No
-  credentials. Nothing is created.**
-- Because of that, **every output is stamped `NON-EVIDENTIARY`** — it's a
-  practice artifact that demonstrates the machinery, **not** a real submission to
-  the government.
+Read simply: Gate 1 is the promise that the plan covers everything. Gate 2 is the
+receipt that it was actually done and a human vouches for it.
 
-None of that makes the demo fake in a misleading way — the _mechanism_ is fully
-wired end to end. It just runs on stand-in data until real cloud integration is
-switched on. You can run it yourself in **[05 — Try it yourself](05-try-it.md)**.
+## The founding principle
 
-## In one sentence
+One sentence governs the whole design:
 
-This is a machine that turns a contract's security requirements into a built,
-checked, and proven cloud environment — as one connected action — shown today as
-a fully-wired mock run.
+> Evidence does not verify requirements; evidence supports a human judgment that
+> requirements are satisfied.
 
-**Next: [01 — The Order](01-the-order.md)**
+Machines provision the environment, gather evidence, and run automated checks, which
+are recorded as automatic assertions. But a control is marked met only when a human —
+the [Affirming Official](06-glossary.md) — attests it, recorded as a manual assertion.
+That human carries legal accountability under the False Claims Act, and under 18 U.S.C.
+section 1001 for false statements to the federal government. The same line holds on the
+input side: software drafts the contract's obligations, and a Compliance Officer
+attests them. In the data model itself, evidence *addresses* a control and only a human
+attestation *attests* it — and this is enforced in the graph, not merely by policy.
+Chapter [03-machine-vs-human.md](03-machine-vs-human.md) explains this in full.
+
+## Honest limits
+
+It matters to state plainly what is not yet real. None of this is buried in fine print.
+
+- **Every run today is non-evidentiary.** Evidence is fixture-backed and the terraform
+  plan uses mock providers. Nothing produced today is a submittable government artifact.
+- **The engine records claims; it does not make an organization compliant.** A false
+  claim still passes here. A human signer carries the accountability, and an assessor
+  catches it.
+- **References are not resolved live yet.** They resolve against local files and
+  fixtures rather than reaching out to the real authoritative source.
+- **Attestations are not cryptographically signed yet.** Today the trust is the Git
+  history of the attestation file. Sigstore/cosign is scaffolded (there is a `sig_algo`
+  field) but not wired.
+- **The engine does not talk to SPRS.** A human files the computed score at the
+  government portal.
+- **The 16 policy documents** under `src/compliance_engine/documents/policies/` are
+  scaffolding and must be replaced with an organization's own adopted policies.
+- **Deferred work** includes: live terraform apply, live evidence resolvers,
+  cryptographic signing, cloud (GCS/Azure) registry backends, and an approval gate.
+
+Note: none of this makes the demo misleading. The mechanism is wired end to end; it
+simply runs on stand-in inputs until live integration is switched on, and it stamps
+every output NON-EVIDENTIARY so no one mistakes a practice run for a real submission.
+
+## Summary
+
+The Compliance Engine turns a contract's security requirements into a proven cloud
+environment, treating provisioning and proving as one action rather than two. It
+targets CMMC Level 2 — the 110 controls of NIST SP 800-171 Rev. 2 — and covers all of
+them, not just the machine-measurable ones, by using a single attested-reference check
+that works the same whether a control is measured by a machine or attested by a person.
+Two machines carry this out across a clean seam: the Order Compiler decides what must
+be true and emits a signed Order, and the Runtime executes that Order to make it true
+and prove it. Two gates keep the process honest — Gate 1 refuses to build on an
+incomplete plan, and Gate 2 records a control as met only when evidence passes its
+oracle and a named human attests it. Above all, evidence supports a human judgment; it
+never replaces one.
+
+**Next: [01-the-order.md](01-the-order.md)**
