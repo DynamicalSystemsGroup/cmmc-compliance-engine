@@ -369,6 +369,25 @@ def bom_cmd(output_dir: _OUT = "output") -> None:
     typer.echo(f"BOM: {bom.bom_hash} (evidentiary_status={bom.evidentiary_status})")
 
 
+@app.command("verify")
+def verify_cmd(output_dir: _OUT = "output") -> None:
+    """Re-verify the output dataset: re-hash evidence nodes and check SHACL shapes for tampering."""
+    import traceability.verification
+    out = _ensure_out(output_dir)
+    ds = _load_ds(out)
+    report = traceability.verification.verify(ds)
+    if report.reverification_mismatches:
+        for m in report.reverification_mismatches:
+            iri_seg = str(m.evidence_iri).rsplit("/", 1)[-1]
+            typer.echo(f"{iri_seg}  expected={m.expected_hash[:12]}  actual={m.actual_hash[:12]}")
+        raise typer.Exit(code=1)
+    if not report.conforms:
+        for line in report.summary_lines():
+            typer.echo(line)
+        raise typer.Exit(code=1)
+    typer.echo("Dataset intact. No tampering detected. SHACL shapes conform.")
+
+
 @app.command("ssp")
 def ssp_cmd(output_dir: _OUT = "output") -> None:
     """Render the SSP from the persisted dataset (skipped if the SSP compiler is unavailable)."""

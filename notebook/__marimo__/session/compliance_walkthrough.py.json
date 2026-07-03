@@ -1,0 +1,400 @@
+{
+  "version": "1",
+  "metadata": {
+    "marimo_version": "0.23.13",
+    "script_metadata_hash": null
+  },
+  "cells": [
+    {
+      "id": "Hbol",
+      "code_hash": "d1ccf0a7374af779bbf780921e31c191",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/plain": ""
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "MJUe",
+      "code_hash": "12b34a8348d08e4d9b6f29bf0ff63977",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/plain": ""
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "vblA",
+      "code_hash": "09573a29d1b6048187c0d589ab9fc6ab",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h1 id=\"the-compliance-engine-one-stage-at-a-time\">The compliance engine, one stage at a time</h1>\n<span class=\"paragraph\"><strong>Building the secure cloud environment and proving it's compliant are the <em>same\naction</em>.</strong> This notebook runs the real engine end-to-end and shows what each step\ndoes with its actual input and output. It's a mock run \u2014 fixture data, Terraform in\npreview only, nothing deployed \u2014 so every artifact is stamped <strong>NON-EVIDENTIARY</strong>.</span>\n<span class=\"paragraph\">A contract becomes a signed build <strong>Order</strong>, a <strong>Factory</strong> executes it and gathers\nevidence, machines run automated checks, and a <strong>human attests</strong> the result \u2014 with\ntwo safety gates that refuse to let the system fool itself.</span></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "bkHC",
+      "code_hash": "70e25d11abb9bd17f5fb2f28dae40e08",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/html": "<marimo-mermaid data-diagram='&quot;&#92;n    flowchart LR&#92;n        C[&#92;&quot;Contract&#92;&#92;n(NV012)&#92;&quot;] --&#92;u003e OB[&#92;&quot;Obligations&#92;&quot;]&#92;n        OB --&#92;u003e RC[&#92;&quot;Required&#92;&#92;ncontrols&#92;&quot;]&#92;n        RC --&#92;u003e COP[&#92;&quot;COP&#92;&#92;nAI drafts \u00b7 human attests&#92;&quot;]&#92;n        COP --&#92;u003e G1{{&#92;&quot;GATE 1&#92;&#92;nplanning coverage&#92;&quot;}}&#92;n        G1 --&#92;u003e ORD[&#92;&quot;Signed&#92;&#92;nOrder&#92;&quot;]&#92;n        ORD --&#92;u003e FAC[&#92;&quot;Factory&#92;&#92;nplan \u00b7 evidence \u00b7 oracles&#92;&quot;]&#92;n        FAC --&#92;u003e G2{{&#92;&quot;GATE 2&#92;&#92;nhuman attests MET&#92;&quot;}}&#92;n        G2 --&#92;u003e AUD[&#92;&quot;Audit + SPRS&#92;&quot;]&#92;n        AUD --&#92;u003e BOM[&#92;&quot;BOM + SSP&#92;&#92;n(the proof)&#92;&quot;]&#92;n    &quot;'></marimo-mermaid>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "lEQa",
+      "code_hash": "bc84707c5fa15b57fa254dc1de3c52f7",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/html": "<marimo-accordion data-labels='[&quot;&#92;u003cspan class=&#92;&quot;markdown prose dark:prose-invert contents&#92;&quot;&#92;u003e&#92;u003cspan class=&#92;&quot;paragraph&#92;&quot;&#92;u003e\ud83d\udcd6 Glossary \u2014 the jargon, in plain English&#92;u003c/span&#92;u003e&#92;u003c/span&#92;u003e&quot;]' data-multiple='false'><div><span class=\"markdown prose dark:prose-invert contents\"><table>\n<thead>\n<tr>\n<th>Term</th>\n<th>Plain meaning</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td><strong>CMMC / NIST 800-171</strong></td>\n<td>The ~110 security rules a DoD contractor must follow to handle sensitive info (CUI).</td>\n</tr>\n<tr>\n<td><strong>Control</strong></td>\n<td>One security rule (e.g. \"require multi-factor login\").</td>\n</tr>\n<tr>\n<td><strong>COP</strong></td>\n<td>Contract Obligation Profile \u2014 the machine-readable list of what this contract requires.</td>\n</tr>\n<tr>\n<td><strong>Obligation</strong></td>\n<td>One requirement pulled from the contract; resolves to a set of controls.</td>\n</tr>\n<tr>\n<td><strong>Order</strong></td>\n<td>The signed, hash-referenced build order the Factory executes.</td>\n</tr>\n<tr>\n<td><strong>Module</strong></td>\n<td>A piece of cloud setup (a KMS keyring, an IAM group) that satisfies one or more controls.</td>\n</tr>\n<tr>\n<td><strong>Evidence</strong></td>\n<td>An artifact that <em>addresses</em> a control (a config export, a policy check). Never MET on its own.</td>\n</tr>\n<tr>\n<td><strong>Oracle</strong></td>\n<td>An automated check: evidence vs a machine criterion \u2192 passed / failed / cantTell.</td>\n</tr>\n<tr>\n<td><strong>Attestation</strong></td>\n<td>A human's recorded MET/NOT-MET judgment. Only this makes a control officially MET.</td>\n</tr>\n<tr>\n<td><strong>Gate 1 / Gate 2</strong></td>\n<td>Planning-coverage gate (before build) / fulfillment gate (human attests, at the end).</td>\n</tr>\n<tr>\n<td><strong>BOM / SSP</strong></td>\n<td>Bill of Materials (machine proof) / System Security Plan (human doc). Content-addressed.</td>\n</tr>\n<tr>\n<td><strong>NON-EVIDENTIARY</strong></td>\n<td>Stamp meaning \"mock/practice artifact \u2014 not a real government submission.\"</td>\n</tr>\n</tbody>\n</table></span></div></marimo-accordion>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "PKri",
+      "code_hash": "08f0e9011755e8f84b16d7539356b89b",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/html": "<div style='display: flex;flex: 1;flex-direction: column;justify-content: flex-start;align-items: normal;flex-wrap: nowrap;gap: 0.5rem'><marimo-ui-element object-id='PKri-0' random-id='cf34d7a7-7440-5aa3-78ad-7489f643c814'><marimo-dropdown data-initial-value='[&quot;all-covered&quot;]' data-label='&quot;&#92;u003cspan class=&#92;&quot;markdown prose dark:prose-invert contents&#92;&quot;&#92;u003e&#92;u003cspan class=&#92;&quot;paragraph&#92;&quot;&#92;u003e&#92;u003cstrong&#92;u003eScenario&#92;u003c/strong&#92;u003e&#92;u003c/span&#92;u003e&#92;u003c/span&#92;u003e&quot;' data-options='[&quot;all-covered&quot;,&quot;gap&quot;,&quot;contradiction&quot;]' data-allow-select-none='false' data-searchable='false' data-full-width='false' data-disabled='false'></marimo-dropdown></marimo-ui-element><span class=\"markdown prose dark:prose-invert contents\"><ul>\n<li><strong>all-covered</strong> \u2014 everything the contract requires is covered and signed off \u2192 full score.</li>\n<li><strong>gap</strong> \u2014 require a control nothing implements \u2192 <strong>Gate 1 refuses</strong>, nothing is built.</li>\n<li><strong>contradiction</strong> \u2014 a human signs MET over a <em>failed</em> machine check \u2192 the audit flags it.</li>\n</ul>\n<span class=\"paragraph\"><em>Change the dropdown and every cell below re-runs on the real engine.</em></span></span></div>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "Xref",
+      "code_hash": "52879c605bccb04f3e680b9c6d811012",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/html": "<marimo-callout-output data-html='&quot;&#92;u003cspan class=&#92;&quot;markdown prose dark:prose-invert contents&#92;&quot;&#92;u003e&#92;u003cspan class=&#92;&quot;paragraph&#92;&quot;&#92;u003e&#92;u003cstrong&#92;u003eScenario &#92;u003ccode&#92;u003eall-covered&#92;u003c/code&#92;u003e&#92;u003c/strong&#92;u003e \u2014 built a fresh knowledge graph from the committed catalog, structural model, and the NV012 COP (&#92;u003ccode&#92;u003efixtures/nv012/cop_draft.ttl&#92;u003c/code&#92;u003e). &#92;u003cstrong&#92;u003e9 obligations&#92;u003c/strong&#92;u003e loaded.&#92;u003c/span&#92;u003e&#92;u003c/span&#92;u003e&quot;' data-kind='&quot;neutral&quot;'></marimo-callout-output>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "SFPL",
+      "code_hash": "7a87ac8dfbdcf2262f968bc0fe4be393",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"stage-1-the-contract-obligations\">Stage 1 \u00b7 The contract \u2192 obligations</h2></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "BYtC",
+      "code_hash": "0b026bc4fb8152b73941fee7d9186de7",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/html": "<div style='display: flex;flex: 1;flex-direction: column;justify-content: flex-start;align-items: normal;flex-wrap: nowrap;gap: 0.5rem'><span class=\"markdown prose dark:prose-invert contents\"><span class=\"paragraph\">Each <strong>obligation</strong> is one requirement pulled from the contract. The real resolver (<code>rule_library.resolve</code>) turns each into the controls it demands. A CUI/ITAR-marked deliverable trips a spillover guard rather than resolving silently.</span></span><span class=\"markdown prose dark:prose-invert contents\"><table>\n<thead>\n<tr>\n<th>obligation</th>\n<th>type</th>\n<th>CUI/ITAR</th>\n<th>resolves to controls</th>\n<th>note</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>OBL-NV012-ACCESS</td>\n<td>data</td>\n<td>CUI</td>\n<td>AC.L2-3.1.1, AC.L2-3.1.2, AC.L2-3.1.3, AC.L2-3.1.5</td>\n<td></td>\n</tr>\n<tr>\n<td>OBL-NV012-AUDIT</td>\n<td>environment</td>\n<td>\u2014</td>\n<td>AU.L2-3.3.1, AU.L2-3.3.2, AU.L2-3.3.5</td>\n<td></td>\n</tr>\n<tr>\n<td>OBL-NV012-CONFIG</td>\n<td>environment</td>\n<td>\u2014</td>\n<td>CM.L2-3.4.1, CM.L2-3.4.2, CM.L2-3.4.6, CM.L2-3.4.7</td>\n<td></td>\n</tr>\n<tr>\n<td>OBL-NV012-CRYPTO</td>\n<td>data</td>\n<td>CUI</td>\n<td>SC.L2-3.13.10, SC.L2-3.13.11, SC.L2-3.13.16</td>\n<td></td>\n</tr>\n<tr>\n<td>OBL-NV012-DELIV-TOOL</td>\n<td>deliverable</td>\n<td>\u2014</td>\n<td>\u2014</td>\n<td></td>\n</tr>\n<tr>\n<td>OBL-NV012-IDENTITY</td>\n<td>personnel</td>\n<td>\u2014</td>\n<td>IA.L2-3.5.2, IA.L2-3.5.3, IA.L2-3.5.4</td>\n<td></td>\n</tr>\n<tr>\n<td>OBL-NV012-MONITOR</td>\n<td>environment</td>\n<td>\u2014</td>\n<td>SI.L2-3.14.3, SI.L2-3.14.6</td>\n<td></td>\n</tr>\n<tr>\n<td>OBL-NV012-PHYS</td>\n<td>environment</td>\n<td>\u2014</td>\n<td>PE.L2-3.10.1, PE.L2-3.10.2</td>\n<td></td>\n</tr>\n<tr>\n<td>OBL-NV012-RESIDENCY</td>\n<td>environment</td>\n<td>\u2014</td>\n<td>SC.L2-3.13.1</td>\n<td></td>\n</tr>\n</tbody>\n</table></span></div>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "RGSE",
+      "code_hash": "50610acf01ea67ea2d91c10e206d32d2",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"stage-2-obligations-the-required-control-set\">Stage 2 \u00b7 Obligations \u2192 the required-control set</h2></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "Kclp",
+      "code_hash": "7d62a1b5072979c79b5ce8e516a5a6ca",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/html": "<div style='display: flex;flex: 1;flex-direction: column;justify-content: flex-start;align-items: normal;flex-wrap: nowrap;gap: 0.5rem'><marimo-stat data-value='22' data-label='&quot;required controls&quot;' data-caption='&quot;the Tier-1 controls this environment is graded on&quot;' data-bordered='true' data-target_direction='&quot;increase&quot;'></marimo-stat><span class=\"markdown prose dark:prose-invert contents\"><span class=\"paragraph\"><code>compiler.resolve_required_controls</code> unions every obligation's controls into the set this environment is responsible for \u2014 the scope the whole run is graded on.</span></span><span class=\"markdown prose dark:prose-invert contents\"><span class=\"paragraph\"><strong>Controls:</strong> AC.L2-3.1.1, AC.L2-3.1.2, AC.L2-3.1.3, AC.L2-3.1.5, AU.L2-3.3.1, AU.L2-3.3.2, AU.L2-3.3.5, CM.L2-3.4.1, CM.L2-3.4.2, CM.L2-3.4.6, CM.L2-3.4.7, IA.L2-3.5.2, IA.L2-3.5.3, IA.L2-3.5.4, PE.L2-3.10.1, PE.L2-3.10.2, SC.L2-3.13.1, SC.L2-3.13.10, SC.L2-3.13.11, SC.L2-3.13.16, SI.L2-3.14.3, SI.L2-3.14.6</span></span><span class=\"markdown prose dark:prose-invert contents\"><span class=\"paragraph\"><em>No policy markers \u2014 this contract's obligations resolve entirely to controls, with no ITAR / US-person / residency overlay to carry alongside them.</em></span></span></div>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "emfo",
+      "code_hash": "14a0e205bfb8f8119a32aa8f727e36a5",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"stage-3-the-cop-attestation-ai-drafts-a-human-attests\">Stage 3 \u00b7 The COP attestation \u2014 <em>AI drafts, a human attests</em></h2>\n<span class=\"paragraph\">The founding rule of the whole system: <strong>a machine may draft and gather, but only a\nhuman validation carries legal weight.</strong> Here the Compliance Officer attests the\nContract Obligation Profile.</span></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "Hstk",
+      "code_hash": "3455b083655899ffb0759b39f0016a79",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/html": "<div style='display: flex;flex: 1;flex-direction: column;justify-content: flex-start;align-items: normal;flex-wrap: nowrap;gap: 0.5rem'><div style='display: flex;flex: 1;flex-direction: row;justify-content: space-between;align-items: normal;flex-wrap: nowrap;gap: 0.5rem'><marimo-stat data-value='&quot;passed&quot;' data-label='&quot;COP outcome&quot;' data-bordered='true' data-target_direction='&quot;increase&quot;'></marimo-stat><marimo-stat data-value='1' data-label='&quot;obligations affirmed&quot;' data-bordered='true' data-target_direction='&quot;increase&quot;'></marimo-stat></div><marimo-callout-output data-html='&quot;&#92;u003cspan class=&#92;&quot;markdown prose dark:prose-invert contents&#92;&quot;&#92;u003e&#92;u003cspan class=&#92;&quot;paragraph&#92;&quot;&#92;u003eAttestation mode: &#92;u003cstrong&#92;u003eAI-assisted draft (earl:semiAuto)&#92;u003c/strong&#92;u003e. In this demo the officer auto-affirms; a real run is a manual signature carrying False-Claims-Act accountability.&#92;u003c/span&#92;u003e&#92;u003c/span&#92;u003e&quot;' data-kind='&quot;info&quot;'></marimo-callout-output></div>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "nWHF",
+      "code_hash": "f60a351d7b242d7c4f093a25f7e8c512",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"stage-4-gate-1-planning-coverage-the-first-beat\">Stage 4 \u00b7 GATE 1 \u2014 planning coverage <em>(the first beat)</em></h2>\n<span class=\"paragraph\">Before anything is built, the system refuses to proceed unless the plan is complete\nin <strong>both</strong> directions: every required control has a module claiming it (forward),\nevery module traces back to a required control (backward), and no claim lacks a\ntestable method. <strong>A gap \u21d2 the Order is refused and the missing control is named.</strong></span></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "iLit",
+      "code_hash": "c340721a94beef946158f01001cd4f29",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/html": "<div style='display: flex;flex: 1;flex-direction: column;justify-content: flex-start;align-items: normal;flex-wrap: nowrap;gap: 0.5rem'><div style='display: flex;flex: 1;flex-direction: row;justify-content: space-between;align-items: normal;flex-wrap: nowrap;gap: 0.5rem'><marimo-stat data-value='&quot;forward          PASS  (22 checked, 0 failures)&quot;' data-label='&quot;forward&quot;' data-bordered='true' data-target_direction='&quot;increase&quot;'></marimo-stat><marimo-stat data-value='&quot;backward         PASS  (10 checked, 0 failures)&quot;' data-label='&quot;backward&quot;' data-bordered='true' data-target_direction='&quot;increase&quot;'></marimo-stat><marimo-stat data-value='&quot;no-paper-claim   PASS  (10 checked, 0 failures)&quot;' data-label='&quot;testable&quot;' data-bordered='true' data-target_direction='&quot;increase&quot;'></marimo-stat></div><marimo-callout-output data-html='&quot;&#92;u003cspan class=&#92;&quot;markdown prose dark:prose-invert contents&#92;&quot;&#92;u003e&#92;u003cspan class=&#92;&quot;paragraph&#92;&quot;&#92;u003e&#92;u003cstrong&#92;u003eGate 1 PASSES&#92;u003c/strong&#92;u003e \u2014 every required control is covered by a testable module. The Order may emit.&#92;u003c/span&#92;u003e&#92;u003c/span&#92;u003e&quot;' data-kind='&quot;success&quot;'></marimo-callout-output></div>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "ZHCJ",
+      "code_hash": "c4d26ea7cc4b31609945ebb70abf1846",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"stage-5-the-signed-order\">Stage 5 \u00b7 The signed Order</h2></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "ROlb",
+      "code_hash": "c54eceaaf9921c8ffc3fa2f88d8235c2",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/html": "<div style='display: flex;flex: 1;flex-direction: column;justify-content: flex-start;align-items: normal;flex-wrap: nowrap;gap: 0.5rem'><div style='display: flex;flex: 1;flex-direction: row;justify-content: space-between;align-items: normal;flex-wrap: nowrap;gap: 0.5rem'><marimo-stat data-value='&quot;cdad6fb17f7cb5\u2026&quot;' data-label='&quot;order hash&quot;' data-bordered='true' data-target_direction='&quot;increase&quot;'></marimo-stat><marimo-stat data-value='22' data-label='&quot;required controls&quot;' data-bordered='true' data-target_direction='&quot;increase&quot;'></marimo-stat><marimo-stat data-value='10' data-label='&quot;included modules&quot;' data-bordered='true' data-target_direction='&quot;increase&quot;'></marimo-stat></div><span class=\"markdown prose dark:prose-invert contents\"><span class=\"paragraph\">A hash-referenced, tamper-evident build order: the required controls, the modules that cover them, and content hashes tying it all together.</span></span><span class=\"markdown prose dark:prose-invert contents\"><table>\n<thead>\n<tr>\n<th>module</th>\n<th>content hash</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>AuditLog_Export</td>\n<td>00693338fb29c3\u2026</td>\n</tr>\n<tr>\n<td>CMEK_KeyRing</td>\n<td>5c41b30cc0ef81\u2026</td>\n</tr>\n<tr>\n<td>CSP_Physical_Inheritance</td>\n<td>82e5d2082cc9fb\u2026</td>\n</tr>\n<tr>\n<td>CUI_Users_Group</td>\n<td>59a6617d68a550\u2026</td>\n</tr>\n<tr>\n<td>Disable_NonFedRAMP_Services</td>\n<td>45b70ef22dcb69\u2026</td>\n</tr>\n<tr>\n<td>Drive_DLP_Rules</td>\n<td>ea589346e8b68f\u2026</td>\n</tr>\n<tr>\n<td>Monitoring_Alerting</td>\n<td>0ed2eedf228cfa\u2026</td>\n</tr>\n<tr>\n<td>OrgPolicy_USRegion</td>\n<td>ce20d3b1b76ec9\u2026</td>\n</tr>\n<tr>\n<td>Terraform_Baseline</td>\n<td>10bee86a3f6d30\u2026</td>\n</tr>\n<tr>\n<td>Workspace2SV_CUI_OU</td>\n<td>b5e9a6da66f8d1\u2026</td>\n</tr>\n</tbody>\n</table></span></div>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "qnkX",
+      "code_hash": "eb30b725ca9e694478eaee608ade9ebe",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"stage-6-the-factory-build-it-and-gather-the-proof\">Stage 6 \u00b7 The Factory \u2014 build it and gather the proof</h2>\n<span class=\"paragraph\">The Factory executes the Order: fetch the modules <strong>by hash</strong>, <code>terraform plan</code> the\nenvironment, run a policy check <em>before</em> any apply, apply (mock), gather evidence,\nand run the machine <strong>oracles</strong>. Oracles <em>evaluate</em> evidence against a criterion \u2014\nthey never attest.</span></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "TqIu",
+      "code_hash": "4576e3f9a1799e96368a209d619e28c6",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/html": "<div style='display: flex;flex: 1;flex-direction: column;justify-content: flex-start;align-items: normal;flex-wrap: nowrap;gap: 0.5rem'><div style='display: flex;flex: 1;flex-direction: row;justify-content: space-between;align-items: normal;flex-wrap: nowrap;gap: 0.5rem'><marimo-stat data-value='10' data-label='&quot;modules fetched&quot;' data-bordered='true' data-target_direction='&quot;increase&quot;'></marimo-stat><marimo-stat data-value='5' data-label='&quot;planned resources&quot;' data-bordered='true' data-target_direction='&quot;increase&quot;'></marimo-stat><marimo-stat data-value='&quot;PASS&quot;' data-label='&quot;pre-apply policy&quot;' data-bordered='true' data-target_direction='&quot;increase&quot;'></marimo-stat><marimo-stat data-value='7' data-label='&quot;evidence nodes&quot;' data-bordered='true' data-target_direction='&quot;increase&quot;'></marimo-stat><marimo-stat data-value='6' data-label='&quot;machine oracles&quot;' data-bordered='true' data-target_direction='&quot;increase&quot;'></marimo-stat></div><marimo-accordion data-labels='[&quot;&#92;u003cspan class=&#92;&quot;markdown prose dark:prose-invert contents&#92;&quot;&#92;u003e&#92;u003cspan class=&#92;&quot;paragraph&#92;&quot;&#92;u003eEvidence artifacts (each addresses \u22651 control)&#92;u003c/span&#92;u003e&#92;u003c/span&#92;u003e&quot;,&quot;&#92;u003cspan class=&#92;&quot;markdown prose dark:prose-invert contents&#92;&quot;&#92;u003e&#92;u003cspan class=&#92;&quot;paragraph&#92;&quot;&#92;u003eOracle outcomes (earl: passed / failed / cantTell)&#92;u003c/span&#92;u003e&#92;u003c/span&#92;u003e&quot;,&quot;&#92;u003cspan class=&#92;&quot;markdown prose dark:prose-invert contents&#92;&quot;&#92;u003e&#92;u003cspan class=&#92;&quot;paragraph&#92;&quot;&#92;u003eModules fetched by hash&#92;u003c/span&#92;u003e&#92;u003c/span&#92;u003e&quot;]' data-multiple='false'><div><span class=\"markdown prose dark:prose-invert contents\"><table>\n<thead>\n<tr>\n<th>evidence</th>\n<th>controls</th>\n<th>summary keys</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>52eb61a61772b7\u2026</td>\n<td>SC.L2-3.13.16</td>\n<td>cui_encrypted_at_rest</td>\n</tr>\n<tr>\n<td>6c69bdddaea378\u2026</td>\n<td>AC.L2-3.1.1</td>\n<td>unauthorized_principals</td>\n</tr>\n<tr>\n<td>3c4af60bc14480\u2026</td>\n<td>SC.L2-3.13.11</td>\n<td>fips_module_present</td>\n</tr>\n<tr>\n<td>5f8e7ef2f8ffc7\u2026</td>\n<td>ITAR-120.54, SC.L2-3.13.1</td>\n<td>data_region</td>\n</tr>\n<tr>\n<td>6549f40b7941e0\u2026</td>\n<td>IA.L2-3.5.3</td>\n<td>mfa_enforced_privileged</td>\n</tr>\n<tr>\n<td>4bba2d0adcbb48\u2026</td>\n<td>AC.L2-3.1.1</td>\n<td>unauthorized_principals</td>\n</tr>\n<tr>\n<td>385f07ca2e5870\u2026</td>\n<td>SC.L2-3.13.1</td>\n<td>data_region</td>\n</tr>\n</tbody>\n</table></span></div><div><span class=\"markdown prose dark:prose-invert contents\"><table>\n<thead>\n<tr>\n<th>control</th>\n<th>oracle outcome</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>AC.L2-3.1.1</td>\n<td>passed</td>\n</tr>\n<tr>\n<td>IA.L2-3.5.3</td>\n<td>passed</td>\n</tr>\n<tr>\n<td>ITAR-120.54</td>\n<td>passed</td>\n</tr>\n<tr>\n<td>SC.L2-3.13.1</td>\n<td>cantTell</td>\n</tr>\n<tr>\n<td>SC.L2-3.13.11</td>\n<td>passed</td>\n</tr>\n<tr>\n<td>SC.L2-3.13.16</td>\n<td>passed</td>\n</tr>\n</tbody>\n</table></span></div><div><span class=\"markdown prose dark:prose-invert contents\"><table>\n<thead>\n<tr>\n<th>module</th>\n<th>hash</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>AuditLog_Export</td>\n<td>00693338fb29c3\u2026</td>\n</tr>\n<tr>\n<td>CMEK_KeyRing</td>\n<td>5c41b30cc0ef81\u2026</td>\n</tr>\n<tr>\n<td>CSP_Physical_Inheritance</td>\n<td>82e5d2082cc9fb\u2026</td>\n</tr>\n<tr>\n<td>CUI_Users_Group</td>\n<td>59a6617d68a550\u2026</td>\n</tr>\n<tr>\n<td>Disable_NonFedRAMP_Services</td>\n<td>45b70ef22dcb69\u2026</td>\n</tr>\n<tr>\n<td>Drive_DLP_Rules</td>\n<td>ea589346e8b68f\u2026</td>\n</tr>\n<tr>\n<td>Monitoring_Alerting</td>\n<td>0ed2eedf228cfa\u2026</td>\n</tr>\n<tr>\n<td>OrgPolicy_USRegion</td>\n<td>ce20d3b1b76ec9\u2026</td>\n</tr>\n<tr>\n<td>Terraform_Baseline</td>\n<td>10bee86a3f6d30\u2026</td>\n</tr>\n<tr>\n<td>Workspace2SV_CUI_OU</td>\n<td>b5e9a6da66f8d1\u2026</td>\n</tr>\n</tbody>\n</table></span></div></marimo-accordion><marimo-callout-output data-html='&quot;&#92;u003cspan class=&#92;&quot;markdown prose dark:prose-invert contents&#92;&quot;&#92;u003e&#92;u003cspan class=&#92;&quot;paragraph&#92;&quot;&#92;u003eOnly &#92;u003cstrong&#92;u003e6&#92;u003c/strong&#92;u003e controls are machine-checkable here; the rest of the required set rides on human attestation (next). Machines gather; humans decide.&#92;u003c/span&#92;u003e&#92;u003c/span&#92;u003e&quot;' data-kind='&quot;info&quot;'></marimo-callout-output></div>"
+          }
+        }
+      ],
+      "console": [
+        {
+          "type": "stream",
+          "name": "stdout",
+          "text": "\n[Preflight] Probing backends...\n  Provision: FakeProvisionBackend (compliant, deterministic, no terraform)\n  Storage:   Local filesystem (rdflib Dataset, persisted as output/engine.ttl + output/engine.trig)\n  Provision probe: PASS\n  Storage probe:   PASS\n",
+          "mimetype": "text/plain"
+        }
+      ]
+    },
+    {
+      "id": "Vxnm",
+      "code_hash": "e598ccc066651f4e76b57c88141b048c",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"stage-7-gate-2-the-human-attests-met\">Stage 7 \u00b7 GATE 2 \u2014 the human attests MET</h2>\n<span class=\"paragraph\">A machine can gather evidence and run checks, but it can <strong>never</strong> declare a control\nsatisfied. Only the Affirming Official does \u2014 carrying the legal accountability.</span></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "DnEU",
+      "code_hash": "40b919aa691618d7d0ebe6dedda1a4b9",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/html": "<marimo-callout-output data-html='&quot;&#92;u003cspan class=&#92;&quot;markdown prose dark:prose-invert contents&#92;&quot;&#92;u003e&#92;u003cspan class=&#92;&quot;paragraph&#92;&quot;&#92;u003e&#92;u003cstrong&#92;u003e22 controls attested MET&#92;u003c/strong&#92;u003e by the NV012 Affirming Official \u2014 each with a written adequacy + sufficiency rationale. Machine-checked controls carry their real oracle outcome, so a MET-over-a-failed-check becomes a visible contradiction (Stage 8).&#92;u003c/span&#92;u003e&#92;u003c/span&#92;u003e&quot;' data-kind='&quot;success&quot;'></marimo-callout-output>"
+          }
+        }
+      ],
+      "console": [
+        {
+          "type": "stream",
+          "name": "stdout",
+          "text": "  AC.L2-3.1.1: outcome=earl:passed (MET) \u2014 NV012 Affirming Official\n  AC.L2-3.1.2: outcome=earl:passed (MET) \u2014 NV012 Affirming Official\n  AC.L2-3.1.3: outcome=earl:passed (MET) \u2014 NV012 Affirming Official\n  AC.L2-3.1.5: outcome=earl:passed (MET) \u2014 NV012 Affirming Official\n  AU.L2-3.3.1: outcome=earl:passed (MET) \u2014 NV012 Affirming Official\n  AU.L2-3.3.2: outcome=earl:passed (MET) \u2014 NV012 Affirming Official\n  AU.L2-3.3.5: outcome=earl:passed (MET) \u2014 NV012 Affirming Official\n  CM.L2-3.4.1: outcome=earl:passed (MET) \u2014 NV012 Affirming Official\n  CM.L2-3.4.2: outcome=earl:passed (MET) \u2014 NV012 Affirming Official\n  CM.L2-3.4.6: outcome=earl:passed (MET) \u2014 NV012 Affirming Official\n  CM.L2-3.4.7: outcome=earl:passed (MET) \u2014 NV012 Affirming Official\n  IA.L2-3.5.2: outcome=earl:passed (MET) \u2014 NV012 Affirming Official\n  IA.L2-3.5.3: outcome=earl:passed (MET) \u2014 NV012 Affirming Official\n  IA.L2-3.5.4: outcome=earl:passed (MET) \u2014 NV012 Affirming Official\n  PE.L2-3.10.1: outcome=earl:passed (MET) \u2014 NV012 Affirming Official\n  PE.L2-3.10.2: outcome=earl:passed (MET) \u2014 NV012 Affirming Official\n  SC.L2-3.13.1: outcome=earl:passed (MET) \u2014 NV012 Affirming Official\n  SC.L2-3.13.10: outcome=earl:passed (MET) \u2014 NV012 Affirming Official\n  SC.L2-3.13.11: outcome=earl:passed (MET) \u2014 NV012 Affirming Official\n  SC.L2-3.13.16: outcome=earl:passed (MET) \u2014 NV012 Affirming Official\n  SI.L2-3.14.3: outcome=earl:passed (MET) \u2014 NV012 Affirming Official\n  SI.L2-3.14.6: outcome=earl:passed (MET) \u2014 NV012 Affirming Official\n",
+          "mimetype": "text/plain"
+        }
+      ]
+    },
+    {
+      "id": "ulZA",
+      "code_hash": "cfd637747463096e074f9c384fe59dd6",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"stage-8-audit-sprs-the-second-beat\">Stage 8 \u00b7 Audit + SPRS <em>(the second beat)</em></h2></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "ecfG",
+      "code_hash": "65c3114f82a9793cc3243082537f50b9",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/html": "<div style='display: flex;flex: 1;flex-direction: column;justify-content: flex-start;align-items: normal;flex-wrap: nowrap;gap: 0.5rem'><div style='display: flex;flex: 1;flex-direction: row;justify-content: space-between;align-items: normal;flex-wrap: nowrap;gap: 0.5rem'><marimo-stat data-value='110' data-label='&quot;SPRS score&quot;' data-caption='&quot;Final&quot;' data-bordered='true' data-target_direction='&quot;increase&quot;'></marimo-stat><marimo-stat data-value='&quot;True&quot;' data-label='&quot;valid submission&quot;' data-bordered='true' data-target_direction='&quot;increase&quot;'></marimo-stat><marimo-stat data-value='4' data-label='&quot;MET by machine&quot;' data-bordered='true' data-target_direction='&quot;increase&quot;'></marimo-stat><marimo-stat data-value='18' data-label='&quot;MET by human only&quot;' data-bordered='true' data-target_direction='&quot;increase&quot;'></marimo-stat><marimo-stat data-value='0' data-label='&quot;contradictions&quot;' data-bordered='true' data-target_direction='&quot;increase&quot;'></marimo-stat></div><marimo-callout-output data-html='&quot;&#92;u003cspan class=&#92;&quot;markdown prose dark:prose-invert contents&#92;&quot;&#92;u003e&#92;u003cspan class=&#92;&quot;paragraph&#92;&quot;&#92;u003eNo contradictions \u2014 every human MET call agrees with (or has no) machine check.&#92;u003c/span&#92;u003e&#92;u003c/span&#92;u003e&quot;' data-kind='&quot;success&quot;'></marimo-callout-output></div>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "Pvdt",
+      "code_hash": "be832237074c4af83984dc2358f56dc0",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"stage-9-the-proof-bom-registry-and-ssp\">Stage 9 \u00b7 The proof \u2014 BOM, registry, and SSP</h2></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "ZBYS",
+      "code_hash": "4e16bb865a6293b7ca614e71f75c604d",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/html": "<div style='display: flex;flex: 1;flex-direction: column;justify-content: flex-start;align-items: normal;flex-wrap: nowrap;gap: 0.5rem'><div style='display: flex;flex: 1;flex-direction: row;justify-content: space-between;align-items: normal;flex-wrap: nowrap;gap: 0.5rem'><marimo-stat data-value='&quot;4483673449ac5e\u2026&quot;' data-label='&quot;BOM hash&quot;' data-bordered='true' data-target_direction='&quot;increase&quot;'></marimo-stat><marimo-stat data-value='&quot;mock&quot;' data-label='&quot;evidentiary status&quot;' data-bordered='true' data-target_direction='&quot;increase&quot;'></marimo-stat><marimo-stat data-value='22' data-label='&quot;controls mapped&quot;' data-bordered='true' data-target_direction='&quot;increase&quot;'></marimo-stat></div><marimo-callout-output data-html='&quot;&#92;u003cspan class=&#92;&quot;markdown prose dark:prose-invert contents&#92;&quot;&#92;u003e&#92;u003cspan class=&#92;&quot;paragraph&#92;&quot;&#92;u003eThe &#92;u003cstrong&#92;u003eBOM&#92;u003c/strong&#92;u003e is the machine-readable proof, stored &#92;u003cstrong&#92;u003ewrite-once&#92;u003c/strong&#92;u003e under its own SHA-256 in a content-addressed registry (&#92;u003ccode&#92;u003e/var/folders/68/hxhfgy_11gbdd627l4d_3_br\u2026/registry/&#92;u003c/code&#92;u003e). Because the evidence is fixture-backed, the whole BOM is stamped &#92;u003cstrong&#92;u003e&#92;u003ccode&#92;u003emock&#92;u003c/code&#92;u003e&#92;u003c/strong&#92;u003e.&#92;u003c/span&#92;u003e&#92;u003c/span&#92;u003e&quot;' data-kind='&quot;warn&quot;'></marimo-callout-output><marimo-accordion data-labels='[&quot;&#92;u003cspan class=&#92;&quot;markdown prose dark:prose-invert contents&#92;&quot;&#92;u003e&#92;u003cspan class=&#92;&quot;paragraph&#92;&quot;&#92;u003eControl mapping (control \u2192 status \u2192 evidence)&#92;u003c/span&#92;u003e&#92;u003c/span&#92;u003e&quot;]' data-multiple='false'><div><span class=\"markdown prose dark:prose-invert contents\"><table>\n<thead>\n<tr>\n<th>control</th>\n<th>status</th>\n<th>oracle</th>\n<th>attestation</th>\n<th>#evidence</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>AC.L2-3.1.1</td>\n<td>MET</td>\n<td>passed</td>\n<td>passed</td>\n<td>2</td>\n</tr>\n<tr>\n<td>AC.L2-3.1.2</td>\n<td>MET</td>\n<td>\u2014</td>\n<td>passed</td>\n<td>0</td>\n</tr>\n<tr>\n<td>AC.L2-3.1.3</td>\n<td>MET</td>\n<td>\u2014</td>\n<td>passed</td>\n<td>0</td>\n</tr>\n<tr>\n<td>AC.L2-3.1.5</td>\n<td>MET</td>\n<td>\u2014</td>\n<td>passed</td>\n<td>0</td>\n</tr>\n<tr>\n<td>AU.L2-3.3.1</td>\n<td>MET</td>\n<td>\u2014</td>\n<td>passed</td>\n<td>0</td>\n</tr>\n<tr>\n<td>AU.L2-3.3.2</td>\n<td>MET</td>\n<td>\u2014</td>\n<td>passed</td>\n<td>0</td>\n</tr>\n<tr>\n<td>AU.L2-3.3.5</td>\n<td>MET</td>\n<td>\u2014</td>\n<td>passed</td>\n<td>0</td>\n</tr>\n<tr>\n<td>CM.L2-3.4.1</td>\n<td>MET</td>\n<td>\u2014</td>\n<td>passed</td>\n<td>0</td>\n</tr>\n<tr>\n<td>CM.L2-3.4.2</td>\n<td>MET</td>\n<td>\u2014</td>\n<td>passed</td>\n<td>0</td>\n</tr>\n<tr>\n<td>CM.L2-3.4.6</td>\n<td>MET</td>\n<td>\u2014</td>\n<td>passed</td>\n<td>0</td>\n</tr>\n<tr>\n<td>CM.L2-3.4.7</td>\n<td>MET</td>\n<td>\u2014</td>\n<td>passed</td>\n<td>0</td>\n</tr>\n<tr>\n<td>IA.L2-3.5.2</td>\n<td>MET</td>\n<td>\u2014</td>\n<td>passed</td>\n<td>0</td>\n</tr>\n<tr>\n<td>IA.L2-3.5.3</td>\n<td>MET</td>\n<td>passed</td>\n<td>passed</td>\n<td>1</td>\n</tr>\n<tr>\n<td>IA.L2-3.5.4</td>\n<td>MET</td>\n<td>\u2014</td>\n<td>passed</td>\n<td>0</td>\n</tr>\n<tr>\n<td>PE.L2-3.10.1</td>\n<td>MET</td>\n<td>\u2014</td>\n<td>passed</td>\n<td>0</td>\n</tr>\n<tr>\n<td>PE.L2-3.10.2</td>\n<td>MET</td>\n<td>\u2014</td>\n<td>passed</td>\n<td>0</td>\n</tr>\n<tr>\n<td>SC.L2-3.13.1</td>\n<td>MET</td>\n<td>cantTell</td>\n<td>passed</td>\n<td>2</td>\n</tr>\n<tr>\n<td>SC.L2-3.13.10</td>\n<td>MET</td>\n<td>\u2014</td>\n<td>passed</td>\n<td>0</td>\n</tr>\n<tr>\n<td>SC.L2-3.13.11</td>\n<td>MET</td>\n<td>passed</td>\n<td>passed</td>\n<td>1</td>\n</tr>\n<tr>\n<td>SC.L2-3.13.16</td>\n<td>MET</td>\n<td>passed</td>\n<td>passed</td>\n<td>1</td>\n</tr>\n<tr>\n<td>SI.L2-3.14.3</td>\n<td>MET</td>\n<td>\u2014</td>\n<td>passed</td>\n<td>0</td>\n</tr>\n<tr>\n<td>SI.L2-3.14.6</td>\n<td>MET</td>\n<td>\u2014</td>\n<td>passed</td>\n<td>0</td>\n</tr>\n</tbody>\n</table></span></div></marimo-accordion></div>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "aLJB",
+      "code_hash": "241edcda4c141c8cd74d8e08aa501320",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/html": "<div style='display: flex;flex: 1;flex-direction: column;justify-content: flex-start;align-items: normal;flex-wrap: nowrap;gap: 0.5rem'><marimo-callout-output data-html='&quot;&#92;u003cspan class=&#92;&quot;markdown prose dark:prose-invert contents&#92;&quot;&#92;u003e&#92;u003cspan class=&#92;&quot;paragraph&#92;&quot;&#92;u003eThe &#92;u003cstrong&#92;u003eSSP&#92;u003c/strong&#92;u003e is the human-readable government document, compiled deterministically from the graph. It &#92;u003cstrong&#92;u003estructurally cannot omit&#92;u003c/strong&#92;u003e its NON-EVIDENTIARY banner when the evidence is mock \u2014 banner present: &#92;u003cstrong&#92;u003eTrue&#92;u003c/strong&#92;u003e.&#92;u003c/span&#92;u003e&#92;u003c/span&#92;u003e&quot;' data-kind='&quot;warn&quot;'></marimo-callout-output><marimo-accordion data-labels='[&quot;&#92;u003cspan class=&#92;&quot;markdown prose dark:prose-invert contents&#92;&quot;&#92;u003e&#92;u003cspan class=&#92;&quot;paragraph&#92;&quot;&#92;u003eSSP preview (first 40 lines)&#92;u003c/span&#92;u003e&#92;u003c/span&#92;u003e&quot;]' data-multiple='false'><div><span class=\"markdown prose dark:prose-invert contents\"><div class=\"language-markdown codehilite\"><pre><span></span><code>&lt;!-- AUTO-GENERATED ARTIFACT - DO NOT EDIT.\n     Deterministic view compiled from the RDF dataset by documents/ssp.py.\n     Edit the dataset (re-run the pipeline), then rebuild:\n       uv run python -m documents.ssp build --input &lt;dataset.trig&gt; --&gt;\n\n<span class=\"gh\"># SSP-NV012 \u2014 NV012 System Security Plan + Traceability Matrix (Document 2)</span>\n\n<span class=\"k\">&gt; </span><span class=\"ge\">\u26a0 **NON-EVIDENTIARY \u2014 fixture-derived / auto-attested.**</span>\n<span class=\"k\">&gt; </span><span class=\"ge\">Evidentiary status present: mock. This is a demonstration artifact, **not a submittable SSP**.</span>\n\n<span class=\"gu\">## 1. System identification and CUI boundary</span>\n\n| Field | Value |\n| --- | --- |\n| Document ID | SSP-NV012 |\n| System | NV012 Tier 1 IL4 CUI enclave |\n| CUI boundary | Google Workspace Enterprise Plus + GCP Assured Workloads (IL4) |\n| Dataset | /var/folders/68/hxhfgy_11gbdd627l4d_3_br0000gn/T/ce-notebook-fzg8wovx/engine.trig |\n| Dataset SHA-256 | 0b3b4a9bdb3dda01b36e566bc744ad017b05c08defaf0b18f5b965dc0b2c5257 |\n| Quad count | 2057 |\n| Document date | 2026-07-03T16:29:10.786423+00:00 |\n| Evidentiary status | NON-EVIDENTIARY (mock) |\n| Compiler | documents/ssp.py |\n\n<span class=\"gu\">## 2. Framework applicability</span>\n\nScope: NIST SP 800-171 Rev. 2 / CMMC Level 2 (110 controls). Status is the\nrecorded human attestation (EARL outcome via <span class=\"sb\">`STATUS_LABEL`</span>); evidence\n<span class=\"ge\">*addresses*</span> controls but never <span class=\"ge\">*attests*</span> them. The machine-checkable subset\nis verified by oracles; the remainder is human-attested from documentary\nevidence.\n\n<span class=\"gu\">## 3. Verification Cross-Reference Matrix (VCRM) \u2014 Document 2</span>\n\nOne row per control (all 110). Status is the attestation outcome; a control\nwith no attestation is PLANNED (a gap).\n\n| Control | Implementation | Responsible party | Evidence location | Evidence hash | Status | Gap notes | POA&amp;M ref |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n| AC.L2-3.1.1 | IAM groups + least-privilege role bindings for CUI access | NV012 Affirming Official | nv012/all-covered/gcp_iam_bindings.json | 4bba2d0adcbb, 6c69bdddaea3 | MET | - | - |\n</code></pre></div></span></div></marimo-accordion></div>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "nHfw",
+      "code_hash": "b5c833a18cb59c9624703c8af3ca81bc",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"the-substrate-one-queryable-knowledge-graph\">The substrate \u2014 one queryable knowledge graph</h2></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "xXTn",
+      "code_hash": "9e8bf2ad247252683bc30e298fc8d1e0",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/html": "<div style='display: flex;flex: 1;flex-direction: column;justify-content: flex-start;align-items: normal;flex-wrap: nowrap;gap: 0.5rem'><span class=\"markdown prose dark:prose-invert contents\"><span class=\"paragraph\">Every stage wrote its own <strong>named graph</strong> into one RDF dataset \u2014 controls, the Order, evidence, attestations, the audit \u2014 all separated but queryable together. This is what makes the whole chain re-executable and tamper-evident.</span></span><span class=\"markdown prose dark:prose-invert contents\"><table>\n<thead>\n<tr>\n<th>named graph</th>\n<th>triples</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td><ce:ontology></td>\n<td>1057</td>\n</tr>\n<tr>\n<td><ce:plan></td>\n<td>0</td>\n</tr>\n<tr>\n<td><ce:structural></td>\n<td>118</td>\n</tr>\n<tr>\n<td><ce:order></td>\n<td>150</td>\n</tr>\n<tr>\n<td><ce:evidence></td>\n<td>149</td>\n</tr>\n<tr>\n<td><ce:attestations></td>\n<td>432</td>\n</tr>\n<tr>\n<td><ce:plan_execution></td>\n<td>36</td>\n</tr>\n<tr>\n<td><ce:audit></td>\n<td>115</td>\n</tr>\n</tbody>\n</table></span></div>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "AjVT",
+      "code_hash": "b7e1b6d375b70fdd9a68d3dba07e8f24",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/html": "<marimo-callout-output data-html='&quot;&#92;u003cspan class=&#92;&quot;markdown prose dark:prose-invert contents&#92;&quot;&#92;u003e&#92;u003ch3 id=&#92;&quot;whats-real-vs-mock-right-now&#92;&quot;&#92;u003eWhat&#x27;s real vs. mock right now&#92;u003c/h3&#92;u003e&#92;n&#92;u003cul&#92;u003e&#92;n&#92;u003cli&#92;u003e&#92;u003cstrong&#92;u003eEvidence is fixture-backed&#92;u003c/strong&#92;u003e, not pulled from a live cloud \u2192 every artifact is &#92;u003ccode&#92;u003emock&#92;u003c/code&#92;u003e&#92;n  and every BOM/SSP is &#92;u003cstrong&#92;u003eNON-EVIDENTIARY&#92;u003c/strong&#92;u003e (not submittable).&#92;u003c/li&#92;u003e&#92;n&#92;u003cli&#92;u003e&#92;u003cstrong&#92;u003eTerraform runs in preview only, with mock providers&#92;u003c/strong&#92;u003e \u2014 nothing is deployed, no credentials.&#92;u003c/li&#92;u003e&#92;n&#92;u003cli&#92;u003e&#92;u003cstrong&#92;u003eOnly a handful of controls are machine-checked&#92;u003c/strong&#92;u003e; the rest ride on human attestation.&#92;u003c/li&#92;u003e&#92;n&#92;u003cli&#92;u003e&#92;u003cstrong&#92;u003eDeferred:&#92;u003c/strong&#92;u003e cryptographic signing, live apply + live compliance tests, IL5, and actual&#92;n  SPRS submission. The engine &#92;u003cem&#92;u003ecomputes&#92;u003c/em&#92;u003e the score; a human still submits it.&#92;u003c/li&#92;u003e&#92;n&#92;u003c/ul&#92;u003e&#92;n&#92;u003cspan class=&#92;&quot;paragraph&#92;&quot;&#92;u003eNone of this is hidden \u2014 the banner, the &#92;u003ccode&#92;u003emock&#92;u003c/code&#92;u003e stamp, and the machine-vs-human split are&#92;nall there to keep the demo honest. The &#92;u003cem&#92;u003emechanism&#92;u003c/em&#92;u003e is fully wired end to end.&#92;u003c/span&#92;u003e&#92;u003c/span&#92;u003e&quot;' data-kind='&quot;neutral&quot;'></marimo-callout-output>"
+          }
+        }
+      ],
+      "console": []
+    }
+  ]
+}

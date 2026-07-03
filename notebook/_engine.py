@@ -1,0 +1,379 @@
+"""Adapter layer between the marimo walkthrough notebook and the real engine.
+
+The notebook is a *viewport* onto the running compliance engine, not a fork of it.
+Every function here calls the same code the operator CLI (`cli.py`) calls — it just
+exposes each stage at a finer grain and returns plain data (dicts / dataclasses /
+engine objects) so the notebook cells can render the intermediate artifacts.
+
+Nothing in this module builds UI. It is import-safe and unit-testable on its own:
+`run_pipeline(scenario)` drives the whole chain and returns a structured record.
+
+Path setup: importing this module makes the repo root and the (hyphenated)
+`order-compiler` directory importable, then imports `cli`, which is the single
+source of truth for how the stages wire together over one shared rdflib Dataset
+with a fixed run seed for determinism.
+"""
+
+from __future__ import annotations
+
+import sys
+import tempfile
+from pathlib import Path
+from typing import Any
+
+# --- make the engine importable regardless of the caller's working directory ---
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+for _p in (str(_REPO_ROOT), str(_REPO_ROOT / "order-compiler")):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
+
+import cli  # noqa: E402  — also configures the order-compiler import path
+import compiler  # noqa: E402
+import cop  # noqa: E402
+import gate1  # noqa: E402
+import rule_library as rl  # noqa: E402
+from pipeline.dataset import export_trig, triples_by_graph  # noqa: E402
+from ontology.prefixes import NAMED_GRAPHS  # noqa: E402
+
+# --- constants pulled straight from the CLI so the notebook can't drift from it ---
+SCENARIOS: tuple[str, ...] = cli.EVIDENCE_SETS          # ("all-covered", "gap", "contradiction")
+SEED: str = cli.RUN_SEED_TS                             # fixed timestamp → deterministic hashes
+GAP_CONTROL: str = cli._GAP_CONTROL                     # the required-but-unclaimed control
+CONTRACT_ID: str = cli.CONTRACT_ID                      # "NV012"
+
+# The eight named-graph layers, in the order data flows through them.
+LAYER_ORDER: tuple[str, ...] = (
+    "ontology", "plan", "structural", "order",
+    "evidence", "attestations", "plan_execution", "audit",
+)
+
+
+# ---------------------------------------------------------------------------
+# Stage 0 — build the shared dataset for a scenario
+# ---------------------------------------------------------------------------
+
+def check_scenario(scenario: str) -> None:
+    """Raise a clear error for an unknown scenario (instead of a downstream KeyError)."""
+    if scenario not in SCENARIOS:
+        raise ValueError(f"scenario must be one of {SCENARIOS!r}, got {scenario!r}")
+
+
+def build_dataset(scenario: str):
+    """Fresh `(ds, obligations)` for a scenario — the single reactive root.
+
+    Rebuilds from the committed catalog/structural/COP fixtures each call, so
+    switching scenarios never leaks stale state. For the `gap` scenario we inject
+    a required-but-unclaimed control exactly as `cli._do_compile` does, so Gate 1
+    has a real hole to refuse on.
+    """
+    check_scenario(scenario)
+    ds, obligations = compiler.load_pipeline_dataset()
+    obligations = dict(obligations)
+    if scenario == "gap":
+        obligations["OBL-DEMO-GAP"] = rl.Obligation(
+            "OBL-DEMO-GAP", rl.DATA, derives=frozenset({GAP_CONTROL})
+        )
+    return ds, obligations
+
+
+# ---------------------------------------------------------------------------
+# Stages 1–2 — obligations → required controls
+# ---------------------------------------------------------------------------
+
+def obligation_rows(obligations: dict[str, Any]) -> list[dict[str, Any]]:
+    """Per-obligation view of the contract: type, data marker, and the controls
+    it resolves to via `rule_library.resolve` (the real resolver the compiler uses).
+    """
+    rows: list[dict[str, Any]] = []
+    for name, obl in sorted(obligations.items()):
+        row: dict[str, Any] = {
+            "obligation": name,
+            "type": obl.obligation_type,
+            "data_marker": obl.data_marker or "",
+            "controls": [],
+            "note": "",
+        }
+        try:
+            controls = rl.resolve(obl)
+            row["controls"] = sorted(controls)
+            markers = sorted(getattr(controls, "markers", ()) or ())
+            if markers:
+                row["note"] = "policy markers: " + ", ".join(markers)
+        except rl.SpilloverReviewRequired:
+            row["note"] = "CUI/ITAR deliverable — requires explicit spillover ack"
+        rows.append(row)
+    return rows
+
+
+def required_control_set(obligations: dict[str, Any]) -> tuple[list[str], list[str]]:
+    """The authoritative required-control union + policy markers the Order is built
+    from (`compiler.resolve_required_controls`). Sorted for stable display.
+    """
+    required, markers = compiler.resolve_required_controls(obligations)
+    return sorted(required), sorted(markers)
+
+
+# ---------------------------------------------------------------------------
+# Stage 3 — COP attestation (AI drafts / human attests)
+# ---------------------------------------------------------------------------
+
+def attest_cop_step(ds, obligations: dict[str, Any]):
+    """Attest the Contract Obligation Profile. `auto=True` records the AI-assisted
+    (`earl:semiAuto`) path used by the demo; a real run would be `earl:manual`.
+    Returns the `COPAttestation`.
+    """
+    return cop.attest_cop(ds, obligations, auto=True, now=SEED)
+
+
+# ---------------------------------------------------------------------------
+# Stage 4 — Gate 1 (planning coverage) preview
+# ---------------------------------------------------------------------------
+
+def gate1_preview(required: list[str], ds):
+    """Run the real Gate 1 check and return its `Gate1Report` (forward / backward /
+    untestable, plus `gap_controls()` / `orphan_modules()` / `paper_claim_modules()`).
+    This is the same `run_gate1` the compiler runs authoritatively at Stage 5.
+    """
+    return gate1.run_gate1(set(required), ds)
+
+
+# ---------------------------------------------------------------------------
+# Stage 5 — compile the signed Order (or catch Gate 1's refusal)
+# ---------------------------------------------------------------------------
+
+def compile_order_or_refusal(ds, obligations: dict[str, Any], cop_attestation):
+    """Return `(order, None)` on success, or `(None, gate1_report)` when Gate 1
+    refuses (the `gap` scenario). Mirrors `cli._do_compile`'s refusal handling.
+    """
+    try:
+        order = compiler.compile_order(ds, obligations, cop_attestation, now=SEED)
+        return order, None
+    except compiler.Gate1Failed as exc:
+        return None, exc.report
+
+
+# ---------------------------------------------------------------------------
+# Stage 6–9 — thin pass-throughs to the CLI's stage helpers (identical wiring)
+# ---------------------------------------------------------------------------
+
+def new_output_dir() -> Path:
+    """A throwaway temp dir for run artifacts — never the repo's own `output/`."""
+    return Path(tempfile.mkdtemp(prefix="ce-notebook-"))
+
+
+def run_factory_step(ds, order, scenario: str, output_dir: Path):
+    """Stage 6 — the Factory: fetch-by-hash → plan → policy → mock apply → evidence
+    → oracles. Returns the populated `PipelineState`. Uses the fake provisioner
+    (no terraform binary, no cloud), exactly like the default demo.
+    """
+    return cli._do_run_factory(ds, order.iri, scenario, "fake", output_dir)
+
+
+def attest_step(ds, state) -> int:
+    """Stage 7 — Gate 2: auto-attest MET across the full required set, carrying the
+    real oracle outcome so a MET-over-failed-oracle surfaces as a contradiction.
+    Returns the number of controls attested.
+    """
+    return cli._do_attest(ds, state)
+
+
+def audit_step(ds, output_dir: Path):
+    """Stage 8 — bidirectional audit + SPRS. Returns the `AuditReport`
+    (`.sprs`, `.proven`, `.contradictions`, forward/backward).
+    """
+    return cli._do_audit(ds, output_dir)
+
+
+def bom_step(state, ds, output_dir: Path):
+    """Stage 9a — assemble + store the content-addressed BOM. Returns the `BOM`."""
+    return cli._do_bom(state, ds, output_dir)
+
+
+def save_dataset(ds, output_dir: Path) -> Path:
+    """Persist the whole `<ce:*>` dataset as TriG (so the SSP's fingerprint path
+    resolves). Returns the file path.
+    """
+    path = output_dir / "engine.trig"
+    export_trig(ds, path)
+    return path
+
+
+def ssp_step(ds, audit_report, bom, output_dir: Path) -> str:
+    """Stage 9b — render the deterministic, byte-stable SSP markdown (with the
+    forced NON-EVIDENTIARY banner for mock runs). Returns the markdown string.
+    """
+    from documents.ssp import compile_ssp_from_run
+    dataset_path = save_dataset(ds, output_dir)
+    return compile_ssp_from_run(
+        ds, audit_report=audit_report, bom=bom, dataset_path=dataset_path
+    )
+
+
+# ---------------------------------------------------------------------------
+# Substrate inspection
+# ---------------------------------------------------------------------------
+
+def named_graph_counts(ds) -> list[dict[str, Any]]:
+    """Per-layer triple counts across the eight `<ce:*>` named graphs, in flow order.
+    Returns `[{layer, iri, triples}, ...]`.
+    """
+    raw = triples_by_graph(ds)  # {graph_iri_str: count}
+    by_iri = {str(iri): name for name, iri in NAMED_GRAPHS.items()}
+    rows: list[dict[str, Any]] = []
+    for layer in LAYER_ORDER:
+        iri = str(NAMED_GRAPHS[layer])
+        rows.append({"layer": layer, "iri": iri, "triples": int(raw.get(iri, 0))})
+    # surface any populated graph not in the canonical eight (defensive)
+    for iri, count in raw.items():
+        if iri not in {str(NAMED_GRAPHS[l]) for l in LAYER_ORDER}:
+            rows.append({"layer": by_iri.get(iri, "(other)"), "iri": iri, "triples": int(count)})
+    return rows
+
+
+# ---------------------------------------------------------------------------
+# Coverage data — all 110 controls with status classification
+# ---------------------------------------------------------------------------
+
+# Controls that already have evidence generators + oracle criteria in this engine.
+# Derived from structural/tier1.ttl at call time; listed here for reference only.
+# _COVERED is computed dynamically from the tier1 graph.
+
+# The 6 non-deferrable 1-point controls (cannot be on POA&M even though weight=1).
+_NON_DEF_ONE_POINTERS: frozenset[str] = frozenset({
+    "AC.L2-3.1.20", "AC.L2-3.1.22", "CA.L2-3.12.4",
+    "PE.L2-3.10.3", "PE.L2-3.10.4", "PE.L2-3.10.5",
+})
+
+# The 2 CSP-inherited controls (Google IL4 handles physical security).
+_CSP_INHERITED: frozenset[str] = frozenset({
+    "PE.L2-3.10.1", "PE.L2-3.10.2",
+})
+
+# Controls where a machine evidence generator *could* be wired (cloud/EDR/GitHub APIs)
+# but none exists yet. Editorial classification; see docs/plans/2026-07-03-002.
+_MACHINE_POSSIBLE: frozenset[str] = frozenset({
+    "AC.L2-3.1.6", "AC.L2-3.1.7", "AC.L2-3.1.8", "AC.L2-3.1.10", "AC.L2-3.1.11",
+    "AC.L2-3.1.12", "AC.L2-3.1.13", "AC.L2-3.1.14", "AC.L2-3.1.17", "AC.L2-3.1.19",
+    "AC.L2-3.1.20",
+    "AU.L2-3.3.4", "AU.L2-3.3.7", "AU.L2-3.3.8", "AU.L2-3.3.9",
+    "CM.L2-3.4.3", "CM.L2-3.4.5", "CM.L2-3.4.8",
+    "IA.L2-3.5.1", "IA.L2-3.5.5", "IA.L2-3.5.6", "IA.L2-3.5.7", "IA.L2-3.5.8",
+    "IA.L2-3.5.9", "IA.L2-3.5.10",
+    "MA.L2-3.7.5",
+    "MP.L2-3.8.7",
+    "RA.L2-3.11.2",
+    "SC.L2-3.13.3", "SC.L2-3.13.4", "SC.L2-3.13.5", "SC.L2-3.13.6", "SC.L2-3.13.7",
+    "SC.L2-3.13.8", "SC.L2-3.13.9", "SC.L2-3.13.15",
+    "SI.L2-3.14.1", "SI.L2-3.14.2", "SI.L2-3.14.4", "SI.L2-3.14.5", "SI.L2-3.14.7",
+})
+
+
+def get_coverage_data() -> list[dict[str, Any]]:
+    """All 110 CMMC L2 controls with live status classification.
+
+    Status values:
+      "covered"  — engine checks this today (in structural/tier1.ttl)
+      "machine"  — could be machine-checked; no evidence generator yet
+      "human"    — requires policy/procedure/physical inspection; always cantTell
+    """
+    from rdflib import Graph, RDF
+    from ontology.prefixes import CMMC
+
+    g = Graph()
+    g.parse(_REPO_ROOT / "ontology" / "cmmc-edit.ttl", format="turtle")
+
+    tier1 = Graph()
+    tier1.parse(_REPO_ROOT / "structural" / "tier1.ttl", format="turtle")
+
+    claimed: set[str] = set()
+    for _s, _p, _o in tier1.triples((None, CMMC.controlsSatisfied, None)):
+        _cid = str(_o).split("#")[-1].split("/")[-1]
+        claimed.add(_cid)
+
+    rows: list[dict[str, Any]] = []
+    for ctrl in g.subjects(RDF.type, CMMC.Control):
+        cid = str(g.value(ctrl, CMMC.controlId) or "")
+        if not cid:
+            continue
+        text = str(g.value(ctrl, CMMC.text) or "")
+        try:
+            weight = int(str(g.value(ctrl, CMMC.weight) or "1"))
+        except (ValueError, TypeError):
+            weight = 1
+        family = cid.split(".")[0]
+        non_def = weight > 1 or cid in _NON_DEF_ONE_POINTERS
+        inherited = cid in _CSP_INHERITED
+
+        if cid in claimed:
+            status = "covered"
+        elif cid in _MACHINE_POSSIBLE:
+            status = "machine"
+        else:
+            status = "human"
+
+        rows.append({
+            "id": cid,
+            "family": family,
+            "weight": weight,
+            "status": status,
+            "non_deferrable": non_def,
+            "inherited": inherited,
+            "text": text,
+        })
+
+    rows.sort(key=lambda r: (r["family"], r["id"]))
+    return rows
+
+
+# ---------------------------------------------------------------------------
+# Whole-chain driver (used by the smoke test; available to the notebook)
+# ---------------------------------------------------------------------------
+
+def run_pipeline(scenario: str, output_dir: Path | None = None) -> dict[str, Any]:
+    """Drive the entire chain for one scenario and return a structured record.
+
+    Keys always present: `scenario`, `refused` (bool). On refusal (`gap`):
+    `gate1` (the report), `order` is None, and no downstream keys. On success:
+    `order`, `required_controls`, `cop`, `gate1`, `factory_state`, `halted`,
+    `attested`, `audit`, `bom`, `ssp`, `output_dir`.
+    """
+    check_scenario(scenario)
+    ds, obligations = build_dataset(scenario)
+    required, markers = required_control_set(obligations)
+    cop_att = attest_cop_step(ds, obligations)
+    g1_preview = gate1_preview(required, ds)
+    order, refusal = compile_order_or_refusal(ds, obligations, cop_att)
+
+    if order is None:
+        return {
+            "scenario": scenario,
+            "refused": True,
+            "gate1": refusal or g1_preview,
+            "order": None,
+            "ds": ds,
+        }
+
+    out = Path(output_dir) if output_dir else new_output_dir()
+    out.mkdir(parents=True, exist_ok=True)
+    state = run_factory_step(ds, order, scenario, out)
+    result: dict[str, Any] = {
+        "scenario": scenario,
+        "refused": False,
+        "required_controls": required,
+        "markers": markers,
+        "cop": cop_att,
+        "gate1": order.gate1 or g1_preview,
+        "order": order,
+        "factory_state": state,
+        "halted": bool(state.halted),
+        "output_dir": out,
+        "ds": ds,
+    }
+    if state.halted:
+        return result
+
+    result["attested"] = attest_step(ds, state)
+    result["audit"] = audit_step(ds, out)
+    result["bom"] = bom_step(state, ds, out)
+    result["ssp"] = ssp_step(ds, result["audit"], result["bom"], out)
+    return result
