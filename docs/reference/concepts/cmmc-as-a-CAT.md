@@ -1,6 +1,6 @@
 ## “Compliance-as-a-CAT”
 
-> **📌 Status — origin vision (2026-07-02).** This is the *first* framing of "Compliance-as-a-CAT," kept for its conceptual leap: treat environment provisioning as an Order that produces a Compliance BOM. Two things have since been settled and **supersede this document where they conflict**:
+> **Note: Status — origin vision (2026-07-02).** This is the *first* framing of "Compliance-as-a-CAT," kept for its conceptual leap: treat environment provisioning as an Order that produces a Compliance BOM. Two things have since been settled and **supersede this document where they conflict**:
 >
 > 1. **No IPFS.** This doc pins artifacts to IPFS and says "CID" throughout because early CATs used IPFS. The platform does **not**. Content-addressing is done with **SHA-256 hashes stored in a tiered cloud registry** (GCS for Tier 1, Azure Blob for Tier 2). Wherever this doc says "IPFS," "pin," "MeshClient," or "CID," read **"SHA-256 content hash in the tiered registry."** The authoritative decision is `requirements/cats-compliance-engine-requirements.md` §5 and §16.2.
 > 2. **There is already a reference implementation.** `ADCS-lifecycle-demo/` implements this exact Order → evidence → attestation → BOM loop with bare SHA-256 (no IPFS) and a named-graph store — which is what validated decision #1. The buildout mapping this vision onto it is `concepts/adcs-to-cmmc-compliance-engine.md`.

@@ -4,7 +4,7 @@
 
 > Research compiled from NIST, DoD, DISA, Federal Register, DFARS, ITAR (22 CFR), and practitioner guidance as of July 2026.
 
-> **📌 Addressing-notation note (2026-07-02).** The BOM examples in §6 use IPFS-style CID strings (`bafybei…`) because they were drafted against the original `concepts/cmmc-as-a-CAT.md` framing. The platform does **not** use IPFS: every `*_cid` field and every `bafybei…` value below is **illustrative**. The canonical form is a **SHA-256 hash keyed into the tiered cloud registry** (GCS for Tier 1, Azure Blob for Tier 2), per `requirements/cats-compliance-engine-requirements.md` §5/§16.2 and as implemented in `ADCS-lifecycle-demo/evidence/hashing.py`. Read `…_cid: "bafybei…"` as `…_hash: "sha256:…"`. The control-mapping research itself is unaffected by this substitution.
+> **Note: Addressing-notation note (2026-07-02).** The BOM examples in §6 use IPFS-style CID strings (`bafybei…`) because they were drafted against the original `concepts/cmmc-as-a-CAT.md` framing. The platform does **not** use IPFS: every `*_cid` field and every `bafybei…` value below is **illustrative**. The canonical form is a **SHA-256 hash keyed into the tiered cloud registry** (GCS for Tier 1, Azure Blob for Tier 2), per `requirements/cats-compliance-engine-requirements.md` §5/§16.2 and as implemented in `ADCS-lifecycle-demo/evidence/hashing.py`. Read `…_cid: "bafybei…"` as `…_hash: "sha256:…"`. The control-mapping research itself is unaffected by this substitution.
 
 ---
 

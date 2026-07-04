@@ -35,10 +35,10 @@ override), but is verified green in the suite:
 
 | Req | Claim checked | Result |
 | --- | --- | --- |
-| **R6** | illegal-POA&M gate in `traceability/sprs.py` | ✅ `illegal = [c for c … if c.on_poam and (c.weight > 1 or not c.poam_eligible)]`; `valid_submission = not illegal_poam` |
-| **R10** | all 110 controls in `ontology/cmmc-edit.ttl` | ✅ exactly **110** `a cmmc:Control` nodes |
-| **R12** | NON-EVIDENTIARY banner structurally non-omittable in `documents/ssp.py` | ✅ `compile_ssp` emits the banner + colophon stamp whenever `mock_present`; no suppress flag exists — confirmed live (banner in all mock `ssp.md`) |
-| **R13** | ContradictionShape in `ontology/cmmc_shapes.ttl` | ✅ MET (`ce:hasOutcome earl:passed`) + `ce:oracleOutcome earl:failed` + no `cmmc:overrideJustification` ⇒ violation; confirmed live (contradiction scenario count = 1) |
+| **R6** | illegal-POA&M gate in `traceability/sprs.py` | PASS `illegal = [c for c … if c.on_poam and (c.weight > 1 or not c.poam_eligible)]`; `valid_submission = not illegal_poam` |
+| **R10** | all 110 controls in `ontology/cmmc-edit.ttl` | PASS exactly **110** `a cmmc:Control` nodes |
+| **R12** | NON-EVIDENTIARY banner structurally non-omittable in `documents/ssp.py` | PASS `compile_ssp` emits the banner + colophon stamp whenever `mock_present`; no suppress flag exists — confirmed live (banner in all mock `ssp.md`) |
+| **R13** | ContradictionShape in `ontology/cmmc_shapes.ttl` | PASS MET (`ce:hasOutcome earl:passed`) + `ce:oracleOutcome earl:failed` + no `cmmc:overrideJustification` ⇒ violation; confirmed live (contradiction scenario count = 1) |
 
 All four hold. No traceability claim failed spot-check.
 

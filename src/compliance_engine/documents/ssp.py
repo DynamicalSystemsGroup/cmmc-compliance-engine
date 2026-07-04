@@ -237,7 +237,7 @@ def compile_ssp(
     # -- R12 banner (mandatory when any mock status is present) --------------
     if mock_present:
         lines.extend([
-            "> ⚠ **NON-EVIDENTIARY — fixture-derived / auto-attested.**",
+            "> **NON-EVIDENTIARY — fixture-derived / auto-attested.**",
             f"> Evidentiary status present: {', '.join(mock_present)}. "
             "This is a demonstration artifact, **not a submittable SSP**.",
             "",

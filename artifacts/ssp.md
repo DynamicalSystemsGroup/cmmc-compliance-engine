@@ -5,7 +5,7 @@
 
 # SSP-NV012 — NV012 System Security Plan + Traceability Matrix (Document 2)
 
-> ⚠ **NON-EVIDENTIARY — fixture-derived / auto-attested.**
+> **NON-EVIDENTIARY — fixture-derived / auto-attested.**
 > Evidentiary status present: mock. This is a demonstration artifact, **not a submittable SSP**.
 
 ## 1. System identification and CUI boundary

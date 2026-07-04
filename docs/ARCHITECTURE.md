@@ -7,8 +7,8 @@ tour doc that explains it from scratch. If a term is unfamiliar, the
 
 > **Design of record (end-state).** This document describes the full target
 > architecture. For what is _implemented today_ vs. deferred, see
-> [`docs/AS-BUILT.md`](docs/AS-BUILT.md). In the diagrams, **🟩 green = runs
-> today** and **🟨 amber = Phase II (mocked or deferred today)**. Every current
+> [`docs/AS-BUILT.md`](docs/AS-BUILT.md). In the diagrams, **[now] = runs
+> today** and **[Phase II] = Phase II (mocked or deferred today)**. Every current
 > run is fixture-backed and stamped **NON-EVIDENTIARY**.
 
 ## 1. The one big idea
@@ -72,7 +72,7 @@ flowchart TB
     class X1,STOP stop;
 ```
 
-**Legend:** 🟩 runs today · 🟨 Phase II · 🔷 gate/check · 🟥 hard stop. Today the
+**Legend:** [now] runs today · [Phase II] Phase II · [planned] gate/check · [deferred] hard stop. Today the
 Factory runs `terraform plan` at **preview level with mock providers** (no
 cloud, no credentials); **apply and live compliance tests are Phase II**, and
 evidence is fixture-backed (→ NON-EVIDENTIARY). Attestation signing is real
@@ -208,8 +208,8 @@ flowchart LR
     A["Order + BOM<br/>(delivered)"] --> B["re-fetch modules<br/>by hash"]
     B --> C4["re-run terraform plan<br/>+ re-run checks"]
     C4 --> D{"digest-compare<br/>fingerprints"}
-    D -->|match| OK["✅ reproduced<br/>proof holds"]
-    D -->|mismatch| BAD["❌ tampered / drifted"]
+    D -->|match| OK["yes reproduced<br/>proof holds"]
+    D -->|mismatch| BAD["no tampered / drifted"]
 
     classDef gate fill:#dbeafe,stroke:#2563eb,color:#1e3a8a;
     classDef now fill:#dcfce7,stroke:#16a34a,color:#14532d;
