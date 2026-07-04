@@ -25,6 +25,11 @@ from compliance_engine.pipeline.evidence.hashing import hash_evidence
 
 ROOT = Path(__file__).resolve().parent.parent.parent.parent
 SHAPES_PATH = ROOT / "data" / "ontology" / "cmmc_shapes.ttl"
+# The SOP plan definition (p-plan:Step / p-plan:Variable individuals). The runtime
+# records activities that correspondsToStep these steps but does not carry the step
+# definitions in its own dataset, so PlanInstantiationShape (correspondsToStep ->
+# p-plan:Step) needs them loaded alongside the data at verification time.
+PLAN_PATH = ROOT / "src" / "compliance_engine" / "pipeline" / "plan.ttl"
 
 
 @dataclass
@@ -118,6 +123,10 @@ def verify_shacl(
     shapes = Graph()
     shapes.parse(shapes_path, format="turtle")
     data = _flatten(ds)
+    # Load the SOP plan definitions so correspondsToStep targets resolve to
+    # p-plan:Step nodes (PlanInstantiationShape). Harmless if already present.
+    if PLAN_PATH.exists():
+        data.parse(PLAN_PATH, format="turtle")
     conforms, report_graph, results_text = pyshacl.validate(
         data, shacl_graph=shapes,
         inference="none", allow_warnings=True, advanced=True,

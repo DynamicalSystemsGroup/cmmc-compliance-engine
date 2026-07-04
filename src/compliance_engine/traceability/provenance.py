@@ -203,6 +203,9 @@ def _synth_downstream_activity(ds: Dataset, step: str, contract: str) -> URIRef:
     g.add((act, P_PLAN.correspondsToStep, step_uri))
     g.add((act, PROV.startedAtTime,
            Literal(datetime.now(timezone.utc).isoformat(), datatype=XSD.dateTime)))
+    # Every prov:Activity must record an associated agent (ActivityAgentShape).
+    g.add((act, PROV.wasAssociatedWith, ORDER_COMPILER_AGENT))
+    g.add((ORDER_COMPILER_AGENT, RDF.type, PROV.SoftwareAgent))
     return act
 
 

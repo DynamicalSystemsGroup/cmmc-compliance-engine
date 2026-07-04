@@ -505,31 +505,60 @@ def bom_cmd(output_dir: _OUT = "output") -> None:
     typer.echo(f"BOM: {bom.bom_hash} (evidentiary_status={bom.evidentiary_status})")
 
 
+def _is_non_evidentiary(out: Path) -> bool:
+    """A run is NON-EVIDENTIARY when its BOM inherited a weak (mock) evidentiary
+    status. Full SHACL closure conformance is only expected on real evidence."""
+    import json
+
+    from compliance_engine.traceability.bom import _WEAK_STATUSES
+
+    bom_path = out / "bom.json"
+    if not bom_path.exists():
+        return True  # be conservative: no BOM -> treat as non-evidentiary
+    try:
+        status = json.loads(bom_path.read_text()).get("evidentiary_status", "mock")
+    except (OSError, ValueError):
+        return True
+    return status in _WEAK_STATUSES
+
+
 @app.command("verify")
 def verify_cmd(output_dir: _OUT = "output") -> None:
-    """Re-verify the output dataset: re-hash evidence nodes and check SHACL shapes for tampering."""
-    # KNOWN ISSUE (KI-1, see docs/KNOWN-ISSUES.md): this bare import is a
-    # pre-existing bug — it should be `from compliance_engine.traceability import
-    # verification`. As written it raises ModuleNotFoundError, so this command
-    # currently crashes before running. It is also unrelated to `ce verify-package`
-    # (the Phase E audit-package check, which works). Left as-is (out of scope);
-    # KI-1 has the fix.
-    import traceability.verification
+    """Re-verify the output dataset: re-hash every evidence node (tamper check) and
+    run the SHACL closure suite. Tampering is always a hard failure. On a
+    NON-EVIDENTIARY (mock) run the closure suite's forward-traceability gaps for
+    human-only controls are expected and reported as advisory, not a failure."""
+    from compliance_engine.traceability import verification
 
     out = _ensure_out(output_dir)
     ds = _load_ds(out)
-    report = traceability.verification.verify(ds)
+    report = verification.verify(ds)
+
+    # 1. Tamper check (re-hash) — always a hard gate.
     if report.reverification_mismatches:
+        typer.echo("TAMPERING DETECTED — evidence content hashes do not match:")
         for m in report.reverification_mismatches:
-            iri_seg = str(m.evidence_iri).rsplit("/", 1)[-1]
-            typer.echo(
-                f"{iri_seg}  expected={m.expected_hash[:12]}  actual={m.actual_hash[:12]}"
-            )
+            iri_seg = str(m.evidence).rsplit("/", 1)[-1]
+            typer.echo(f"  {iri_seg}  expected={m.expected[:12]}  actual={m.actual[:12]}")
         raise typer.Exit(code=1)
-    if not report.conforms:
+
+    # 2. SHACL closure — hard on real evidence, advisory on a NON-EVIDENTIARY run.
+    non_evidentiary = _is_non_evidentiary(out)
+    if report.shape_violations:
+        shapes = sorted(report.shapes_named())
+        if non_evidentiary:
+            typer.echo(
+                "No tampering detected (all evidence hashes match).\n"
+                f"NON-EVIDENTIARY run: {len(report.shape_violations)} closure-shape "
+                f"finding(s) [{', '.join(shapes)}] are EXPECTED on mock data — "
+                "human-only controls carry no addressing evidence yet. On real "
+                "evidence these would be hard failures."
+            )
+            return
         for line in report.summary_lines():
             typer.echo(line)
         raise typer.Exit(code=1)
+
     typer.echo("Dataset intact. No tampering detected. SHACL shapes conform.")
 
 

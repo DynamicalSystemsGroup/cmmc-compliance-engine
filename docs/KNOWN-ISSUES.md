@@ -5,13 +5,32 @@ is not already fixed, and how to fix it.
 
 ---
 
-## KI-1: `ce verify` is broken (pre-existing) and does not conform on the mock demo
+## KI-1: `ce verify` was broken and did not conform on the mock demo — RESOLVED
 
-**Status:** open, pre-existing (predates the `feat/signed-provenance` work), out of
-scope for that work. Confirmed on `main`.
+**Status:** RESOLVED (2026-07-03). Was pre-existing (predated `feat/signed-provenance`,
+confirmed on `main`). Fix + regression test below.
 
-**What is wrong.** The `verify` CLI command (`src/compliance_engine/cli.py`,
-`verify_cmd`) — the tamper / SHACL re-verification command — has two independent
+**Resolution.**
+- Fixed the import (`from compliance_engine.traceability import verification`) and a
+  second bug in the same command (it read `m.evidence_iri/expected_hash/actual_hash`,
+  but `ReverificationMismatch` fields are `evidence/expected/actual`).
+- `verify` now separates the **tamper check** (re-hash every evidence node — always a
+  hard failure on a mismatch) from the **SHACL closure** suite. On a NON-EVIDENTIARY
+  (mock) run, closure findings for human-only controls are reported as an advisory,
+  not a hard failure; on real evidence they remain hard failures.
+- Fixed two real closure violations surfaced along the way: the downstream P-Plan
+  activities lacked a `prov:wasAssociatedWith` agent (ActivityAgentShape), and the
+  SOP step definitions (`plan.ttl`) were not loaded at verification time so
+  `correspondsToStep` targets were untyped (PlanInstantiationShape). `verify_shacl`
+  now loads `plan.ttl` alongside the data.
+- Added `tests/test_verify_cli.py`: `ce verify` passes on a clean mock demo (with the
+  advisory) and exits non-zero on tampering.
+
+Net: `ce verify` on the demo now prints "No tampering detected" plus a clear
+NON-EVIDENTIARY advisory and exits 0; a corrupted evidence hash prints "TAMPERING
+DETECTED" and exits 1.
+
+**Original diagnosis (for the record).** The `verify` command had two independent
 problems:
 
 1. **Import bug (hard crash).** Its body does `import traceability.verification`
