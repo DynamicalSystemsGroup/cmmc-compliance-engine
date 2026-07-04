@@ -182,12 +182,44 @@ report.proven.summary()                # "N MET-by-machine / M MET-by-human-only
   of the score rests on attestation rather than reproducible machine checks.
 
 BOM rows record both sides honestly: `ControlMappingRow` carries `oracle_outcome`
-**and** `attestation_outcome`, an **`evidence_backing`** field (`machine` — the
-sign-off is backed by a passing oracle over resolvable evidence; `override` — MET
-over a failed check; `human-only` — no passing machine measurement), and its
+**and** `attestation_outcome`, an **`evidence_backing`** field, and its
 `status` is driven by the attestation (`MET | NOT MET | N/A | PLANNED | CANT TELL`).
 `AttestationRecord` carries the `official`, `role`, `outcome`, and any
 `override_justification` + `override_evidence`.
+
+The `evidence_backing` field has **four** values, and it tells you *what kind of
+proof stands behind a MET*:
+
+- **`machine`** — the sign-off is backed by a passing config-check oracle over
+  resolvable evidence.
+- **`override`** — MET over a *failed* check (scrutinize: requires a written
+  justification and appended override evidence; see Contradictions above).
+- **`attested-evidenced`** — a **Track B (policy/human)** control whose human
+  sign-off is anchored to a **machine-recorded document version**. This is
+  distinct from bare `human-only`: for these controls the engine resolved the
+  control's `ce:Reference` URI to the real document on disk, **SHA-256 hashed** it,
+  captured the **git commit** that last changed it (author + date), and signed an
+  upload receipt with the local Ed25519 signer, binding all of this into the
+  evidence graph as a `ce:DocumentEvidence` node. The attested-reference oracle
+  then **gated** the MET: the control is MET only because the reference is
+  registered, resolves to a real file, is within its freshness window, and is
+  signed by the required role. A stale, dead-link, missing, or wrong-signer
+  reference would have produced `needsAction`/`failed` and a non-MET control. On
+  an `attested-evidenced` row you can therefore trace a Track B MET back to the
+  **exact document content hash and git commit** it was signed against: the row
+  carries `reference_id`, `git_commit`, and `git_committed_at`, and the attestation
+  rationale is the real Affirming Official sign-off text (from
+  `data/attestations/tier1.jsonl`), not boilerplate.
+- **`human-only`** — a human judgment with **no machine anchor** at all (no
+  passing measurement and no document-evidence chain).
+
+What `attested-evidenced` does **not** assert: the engine checked the bureaucratic
+facts (the reference resolves, is fresh, and is role-signed) and pinned the exact
+document version the human signed against — it did **not** judge whether the policy
+document's substance is adequate. The document's substance is still the human's
+call. And because evidence remains fixture-backed, the upload receipt uses the
+local Ed25519 dev signer (not production cosign/KMS), so an `attested-evidenced`
+run is still **NON-EVIDENTIARY** like the rest of Phase I.
 
 ## Step 5 — SSP cross-check (no drift)
 

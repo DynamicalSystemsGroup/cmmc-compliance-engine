@@ -16,7 +16,6 @@ __pycache__/
 # Secrets / env (OIDC short-lived only; no long-lived creds committed)
 .env
 
-
 # Never commit CUI or live evidence exports
 *.cui
 
@@ -29,3 +28,4 @@ results/
 notebooks/__marimo__/
 TODOs.md
 /walkthrough
+output/.DS_Store

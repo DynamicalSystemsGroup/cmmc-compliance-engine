@@ -78,22 +78,35 @@ class ControlMappingRow:
     oracle_outcome: str | None
     attestation_outcome: str | None      # earl short name, or None
     status: str                          # MET | NOT MET | N/A | PLANNED | CANT TELL
+    reference_id: str | None = None      # ce:Reference behind a Track B control
+    git_commit: str | None = None        # commit that produced the document evidence
+    git_committed_at: str | None = None
+    attested_evidenced: bool = False     # human attestation backed by a resolved,
+                                         # hashed, git/Flexo-anchored document
 
     @property
     def evidence_backing(self) -> str:
         """How the human attestation is backed by machine-generated evidence.
 
-          - "machine"    : a machine oracle passed and evidence is on file — the
-                           human sign-off is backed by a machine measurement that
-                           can be resolved and re-run (evidence_hashes).
-          - "override"   : attested MET while the machine oracle FAILED — the
-                           human overruled the machine (must carry an override
-                           justification + appended evidence; see R13).
-          - "human-only" : no passing machine measurement (cantTell / needsAction /
-                           inherited / none) — the sign-off rests on human judgment.
+          - "machine"           : a machine (config) oracle passed and evidence is on
+                                  file — the human sign-off is backed by a measurement
+                                  that can be resolved and re-run (evidence_hashes).
+          - "attested-evidenced": a human (Track B) attestation backed by a *machine-
+                                  recorded* document — the referenced file resolved,
+                                  was SHA-256 hashed, carries its git commit, and a
+                                  signed upload receipt (evidence_hashes + git_commit).
+                                  This is "human attestation, machine-backed."
+          - "override"          : attested MET while the machine oracle FAILED — the
+                                  human overruled the machine (must carry an override
+                                  justification + appended evidence; see R13).
+          - "human-only"        : no machine evidence at all (cantTell / needsAction /
+                                  inherited / none) — rests purely on human judgment.
         """
         if self.attestation_outcome == "passed" and self.oracle_outcome == "failed":
             return "override"
+        if self.attested_evidenced and self.attestation_outcome == "passed" \
+                and self.evidence_hashes:
+            return "attested-evidenced"
         if self.oracle_outcome == "passed" and self.evidence_hashes:
             return "machine"
         return "human-only"
@@ -106,6 +119,9 @@ class ControlMappingRow:
             "oracle_outcome": self.oracle_outcome,
             "attestation_outcome": self.attestation_outcome,
             "evidence_backing": self.evidence_backing,
+            "reference_id": self.reference_id,
+            "git_commit": self.git_commit,
+            "git_committed_at": self.git_committed_at,
             "status": self.status,
         }
 
@@ -302,6 +318,8 @@ def build_bom(
 
     attn = _attestation_outcomes(ds)
 
+    attested_refs = dict(getattr(state, "attested_refs", {}) or {})
+
     # control_mapping: one row per required control.
     rows: list[ControlMappingRow] = []
     for control_id in sorted(required):
@@ -313,6 +331,21 @@ def build_bom(
         att_outcome = att["outcome"] if att else None
         status = _SHORT_STATUS.get(att_outcome, _UNATTESTED_STATUS) if att_outcome \
             else _UNATTESTED_STATUS
+
+        # Track B: a human attestation backed by a machine-recorded document. Fold the
+        # document's content hash into evidence_hashes and carry its git provenance, so
+        # the row shows the "attested-evidenced" backing rather than a bare "human-only".
+        ar = attested_refs.get(control_id)
+        reference_id = git_commit = git_committed_at = None
+        attested_evidenced = False
+        if ar is not None and ar.sha256:
+            reference_id = ar.reference_id
+            git_commit = ar.git_commit
+            git_committed_at = ar.git_committed_at
+            attested_evidenced = ar.outcome == "passed"
+            if ar.sha256 not in ev_hashes:
+                ev_hashes = ev_hashes + (ar.sha256,)
+
         rows.append(ControlMappingRow(
             control_id=control_id,
             resource_ids=resource_ids,
@@ -320,6 +353,10 @@ def build_bom(
             oracle_outcome=oracle_outcomes.get(control_id),
             attestation_outcome=att_outcome,
             status=status,
+            reference_id=reference_id,
+            git_commit=git_commit,
+            git_committed_at=git_committed_at,
+            attested_evidenced=attested_evidenced,
         ))
 
     # attestations[]

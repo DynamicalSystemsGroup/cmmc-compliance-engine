@@ -377,6 +377,12 @@ def _how_to_read() -> str:
           (machine-verified). Others &mdash; training, policy, personnel &mdash; can only be
           confirmed by a person reviewing documents (human-attested). Both are legitimate;
           they differ in how an assessor re-checks them.</dd>
+      <dt>Attested, machine-backed</dt>
+      <dd>A middle ground for the policy controls: a person signs off, but the document they
+          are vouching for is <em>machine-recorded</em> &mdash; the engine resolved the actual
+          file, fingerprinted it (SHA-256), captured the git commit that produced it, and holds
+          a signed receipt of its upload. So the human judgment is anchored to a specific,
+          traceable version of a real document rather than a bare "trust me."</dd>
       <dt>Override</dt>
       <dd>A control marked met even though its automated check failed. This is allowed, but
           it must carry a written justification and supporting evidence, and it is flagged
@@ -417,13 +423,16 @@ def _coverage(m: dict, f: _Facts) -> str:
     fam: dict[str, dict] = {}
     for c in controls:
         key = _family_of(c.get("control", ""))
-        agg = fam.setdefault(key, {"total": 0, "met": 0, "machine": 0, "human": 0, "override": 0})
+        agg = fam.setdefault(key, {"total": 0, "met": 0, "machine": 0,
+                                   "attested": 0, "human": 0, "override": 0})
         agg["total"] += 1
         if c.get("status") == "MET":
             agg["met"] += 1
         backing = c.get("evidence_backing")
         if backing == "machine":
             agg["machine"] += 1
+        elif backing == "attested-evidenced":
+            agg["attested"] += 1
         elif backing == "override":
             agg["override"] += 1
         else:
@@ -434,26 +443,36 @@ def _coverage(m: dict, f: _Facts) -> str:
         return (0, int(mo.group(1))) if mo else (1, 0)
 
     rows = ""
+    tot = {"machine": 0, "attested": 0, "human": 0}
     for key in sorted(fam, key=_sort_key):
         agg = fam[key]
         name = _FAMILY.get(key, "Other")
         ov = f" &middot; {agg['override']} override" if agg["override"] else ""
+        tot["machine"] += agg["machine"]
+        tot["attested"] += agg["attested"]
+        tot["human"] += agg["human"]
         rows += (
             f"<tr><td><b>{_esc(key)}</b> &nbsp; {_esc(name)}</td>"
             f"<td class='num'>{agg['total']}</td>"
             f"<td class='num'>{agg['met']}</td>"
             f"<td class='num'>{agg['machine']}</td>"
+            f"<td class='num'>{agg['attested']}</td>"
             f"<td class='num'>{agg['human']}{ov}</td></tr>"
         )
     return f"""
     <h2>How each control was verified</h2>
     <p>NIST 800-171 groups its controls into fourteen families &mdash; access control, audit,
-    incident response, and so on. The table below rolls the required controls up by family so a
-    reader can see, at a glance, where coverage is proven automatically and where it rests on
-    human attestation. The full control-by-control detail is in Appendix A.</p>
+    incident response, and so on. The table below rolls the required controls up by family. Three
+    ways a control earns its "met": <b>machine</b> (a configuration check the assessor can re-run),
+    <b>attested, machine-backed</b> (a person signs off on a document the engine resolved,
+    hashed, and captured a git commit + signed upload receipt for), and <b>human-attested</b>
+    (rests on human judgment with no machine artifact). Of the required controls,
+    {tot['machine']} are machine-verified, {tot['attested']} are attested and machine-backed, and
+    {tot['human']} rest on human judgment alone. Full detail is in Appendix A.</p>
     <table>
       <thead><tr><th>Family</th><th class="num">Controls</th><th class="num">Met</th>
-      <th class="num">Machine</th><th class="num">Human-attested</th></tr></thead>
+      <th class="num">Machine</th><th class="num">Attested +<br>backed</th>
+      <th class="num">Human-only</th></tr></thead>
       <tbody>{rows}</tbody>
     </table>
     """
@@ -544,22 +563,28 @@ def _appendix_matrix(m: dict) -> str:
                      f"<b>{_esc(fam)} &nbsp; {_esc(name)}</b></td></tr>")
         att = c.get("attestation", {})
         refs = ", ".join(r.get("ref", "") for r in c.get("policy_references", [])) or "—"
+        # For an attested, machine-backed control, show the git commit that produced the
+        # referenced document — the traceable "who changed it, when" behind the sign-off.
+        commit = c.get("git_commit")
+        provenance = f"{refs} @ {commit[:8]}" if (commit and refs != "—") else refs
         body += (
             f"<tr><td class='mono'>{_esc(c.get('control'))}</td>"
             f"<td>{_esc(c.get('status'))}</td>"
             f"<td>{_esc(c.get('evidence_backing'))}</td>"
             f"<td>{_esc(c.get('oracle_outcome') or '—')}</td>"
             f"<td>{_esc(att.get('outcome') or '—')}</td>"
-            f"<td class='small'>{_esc(refs)}</td></tr>"
+            f"<td class='small'>{_esc(provenance)}</td></tr>"
         )
     return f"""
     <h2>Appendix A &mdash; Control-by-control detail</h2>
-    <p class="small muted">Evidence backing: <b>machine</b> = sign-off backed by a passing check
-    over resolvable evidence; <b>override</b> = met over a failed check (requires written
-    justification and appended evidence); <b>human-only</b> = no automated measurement, rests on
-    human judgment.</p>
+    <p class="small muted">Evidence backing: <b>machine</b> = sign-off backed by a passing config
+    check over resolvable evidence; <b>attested-evidenced</b> = a human sign-off backed by a
+    machine-recorded document (resolved, SHA-256 hashed, git commit + signed upload receipt) &mdash;
+    the "Reference" column shows the reference and the commit that produced it; <b>override</b> =
+    met over a failed check (requires written justification and appended evidence); <b>human-only</b>
+    = no machine artifact, rests on human judgment.</p>
     <table><thead><tr><th>Control</th><th>Status</th><th>Backing</th>
-    <th>Automated check</th><th>Attestation</th><th>Policy ref</th></tr></thead>
+    <th>Automated check</th><th>Attestation</th><th>Reference @ commit</th></tr></thead>
     <tbody>{body}</tbody></table>
     """
 

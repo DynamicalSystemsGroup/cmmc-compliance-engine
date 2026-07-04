@@ -291,19 +291,31 @@ def _persist_to_flexo(ds, output_dir: Path) -> None:
 
 
 def _do_attest(ds, state) -> int:
-    """Auto-attest MET for the FULL Order-required control set (Gate 2).
+    """Attest the Order-required control set (Gate 2). Returns the count marked MET.
 
-    A machine-checked control carries its real oracle outcome (`ce:oracleOutcome`)
-    so R13 still fires in the `contradiction` scenario (a failed oracle + a MET
-    attestation without override → contradiction). A required control with no
-    machine oracle is attested MET as human/inherited (no `ce:oracleOutcome`),
-    so `all-covered` reaches full coverage over the required set → SPRS 110/Final.
+    Three paths:
+      * Track A (machine): a config-checked control carries its real oracle outcome
+        (`ce:oracleOutcome`) so R13 still fires in the `contradiction` scenario.
+      * Track B (attested-reference): a control claimed by an oracle-attested-reference
+        module is MET **only if** the attested-reference oracle passed — the referenced
+        document resolved, is fresh, and is role-signed. A missing / stale / dead-link /
+        wrong-signer reference yields needsAction/failed and is NOT marked MET. The MET
+        attestation uses the real Affirming-Official judgement text and links the
+        machine-recorded ce:DocumentEvidence (sha256 + git commit + signed upload).
+      * Human/inherited: a control with no machine oracle and no reference is attested
+        MET on a documentary/CSP basis (no `ce:oracleOutcome`).
     """
+    from pathlib import Path
+
+    from rdflib import URIRef
+
+    import compliance_engine
     from compliance_engine.ontology.prefixes import CE, EARL
     from compliance_engine.traceability.attestation import (
         OUTCOME_PASSED,
         request_attestation,
     )
+    from compliance_engine.traceability.attestation_store import load_all
 
     outcome_iri = {
         "passed": EARL.passed,
@@ -313,8 +325,43 @@ def _do_attest(ds, state) -> int:
     }
     required = state.load_order.required_controls if state.load_order else ()
     outcomes = state.oracles.outcomes if state.oracles else {}
+    attested_refs = getattr(state, "attested_refs", {}) or {}
+
+    # Real AO sign-offs (adequacy/sufficiency/signer) behind the Track B controls.
+    att_dir = Path(compliance_engine.__file__).resolve().parent.parent.parent / "data" / "attestations"
+    ao_by_id = {r.id: r for r in load_all(att_dir)}
+
     n = 0
     for control_id in sorted(required):
+        ar = attested_refs.get(control_id)
+        if ar is not None:
+            rec = ao_by_id.get(ar.attestation_id)
+            signer = rec.signer if rec else "NV012 Affirming Official"
+            ev_iri = URIRef(ar.evidence_iri) if ar.evidence_iri else None
+            if ar.outcome == "passed":
+                adequacy = (rec.adequacy if rec and rec.adequacy else
+                            "Referenced document resolved and attested by the Affirming Official.")
+                sufficiency = (rec.sufficiency if rec and rec.sufficiency else
+                               f"Backed by machine-recorded evidence (sha256 {(ar.sha256 or '')[:12]}, "
+                               f"git {(ar.git_commit or 'n/a')[:12]}).")
+                request_attestation(
+                    ds, control_id, signer, auto_attest=True,
+                    adequacy=adequacy, sufficiency=sufficiency, outcome=OUTCOME_PASSED,
+                    oracle_outcome=outcome_iri.get(ar.outcome), document_evidence=ev_iri,
+                )
+                n += 1
+            else:
+                # NOT MET — the attested-reference oracle declined; do not inflate the score.
+                request_attestation(
+                    ds, control_id, signer, auto_attest=True,
+                    adequacy=f"Attested-reference check did not pass: {ar.reason or ar.outcome}.",
+                    sufficiency=("Control cannot be marked MET until its reference is "
+                                 "registered, fresh, and signed by the required role."),
+                    outcome=outcome_iri.get(ar.outcome, CE.needsAction),
+                    oracle_outcome=outcome_iri.get(ar.outcome), document_evidence=ev_iri,
+                )
+            continue
+
         oracle_outcome = outcomes.get(control_id)
         if oracle_outcome is not None:
             adequacy = "Implementation reviewed against the provisioned configuration."

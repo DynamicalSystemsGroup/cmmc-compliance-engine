@@ -85,6 +85,24 @@ class OracleStageResult:
 
 
 @dataclass(frozen=True)
+class AttestedRefResult:
+    """Track B (attested-reference) result for one control: the machine-recorded
+    document evidence behind a human attestation, plus the oracle's verdict."""
+    control_id: str
+    reference_id: str
+    outcome: str                           # passed|failed|needsAction|cantTell
+    reason: str | None
+    sha256: str | None                     # content hash of the resolved document
+    git_commit: str | None
+    git_committed_at: str | None
+    uploaded_by: str
+    upload_sig_ok: bool                    # signed upload receipt re-verified
+    evidence_iri: str | None               # ce:DocumentEvidence node IRI
+    attestation_id: str | None             # AO record picked, if any
+    flexo_version: str | None = None       # append-only version id (set on flexo persist)
+
+
+@dataclass(frozen=True)
 class StageFailure:
     stage: str
     reason: str
@@ -121,6 +139,8 @@ class PipelineState:
     apply: ApplyStageResult | None = None
     evidence: EvidenceStageResult | None = None
     oracles: OracleStageResult | None = None
+    # Track B: control_id -> attested-reference result (doc evidence + oracle verdict)
+    attested_refs: dict[str, "AttestedRefResult"] = field(default_factory=dict)
 
     # control flow
     halted: bool = False

@@ -37,6 +37,7 @@ from compliance_engine.pipeline.provision import (
 )
 from compliance_engine.pipeline.state import (
     ApplyStageResult,
+    AttestedRefResult,
     EvidenceStageResult,
     FetchResult,
     LoadOrderResult,
@@ -337,6 +338,7 @@ def run_stage_oracles(state: PipelineState) -> None:
 
     outcomes: dict[str, str] = {}
     assertions: list[str] = []
+    # Track A — config-check oracle over machine evidence summaries.
     for entry in state.evidence_index:
         for control_id in entry["controls"]:
             result = evaluate(entry["summary"], control_id)
@@ -347,9 +349,91 @@ def run_stage_oracles(state: PipelineState) -> None:
             outcomes[control_id] = result.outcome
             assertions.append(str(assertion))
 
+    # Track B — attested-reference oracle over machine-recorded document evidence.
+    _run_attested_reference_pass(state, outcomes, assertions)
+
     state.oracles = OracleStageResult(
         outcomes=outcomes, assertion_iris=tuple(assertions),
     )
+
+
+def _run_attested_reference_pass(
+    state: PipelineState, outcomes: dict[str, str], assertions: list[str],
+) -> None:
+    """Track B: for each in-scope control claimed by an oracle-attested-reference
+    module, resolve + hash the referenced document, capture its git provenance and a
+    signed upload receipt, bind it as ce:DocumentEvidence, then run the attested-
+    reference oracle (registered / resolves / fresh / role-signed). The verdict is a
+    REAL gate: a stale, missing, dead-link, or wrong-signer reference yields
+    needsAction/failed and the control is NOT auto-attested MET downstream."""
+    from dataclasses import replace
+    from datetime import datetime, timezone
+
+    from compliance_engine.oracles.assertion import emit_control_check_assertion
+    from compliance_engine.oracles.attested_reference import evaluate_attested_reference
+    from compliance_engine.pipeline.evidence import doc_evidence
+    from compliance_engine.traceability.attestation_store import load_all
+    from compliance_engine.traceability.references import load_attested_controls
+
+    required = set(state.load_order.required_controls) if state.load_order else set()
+    attested = {
+        cid: ac for cid, ac in load_attested_controls(state.ds).items()
+        if cid in required
+    }
+    if not attested:
+        return
+
+    records = load_all(_REPO_ROOT / "data" / "attestations")
+    now_dt: datetime | None = None
+    if state.now:
+        try:
+            now_dt = datetime.fromisoformat(state.now)
+        except ValueError:
+            now_dt = None
+    now_dt = now_dt or datetime.now(timezone.utc)
+
+    ev_graph = graph_for(state.ds, "evidence")
+    for cid, ac in sorted(attested.items()):
+        # A control already resolved by the Track A config oracle keeps that result;
+        # attested-reference is for the policy/human controls Track A returns cantTell for.
+        if outcomes.get(cid) in {"passed", "failed"}:
+            continue
+
+        uploaded_by = ac.custodian or "Affirming Official"
+        ev = None
+        view = ac.view
+        evidence_iri: str | None = None
+        if view is not None:
+            ev = doc_evidence.capture(ac.reference_id, ac.uri, uploaded_by)
+            view = replace(view, resolved_ok=ev.exists)
+            node = doc_evidence.bind_doc_evidence(ev_graph, ev)
+            evidence_iri = str(node)
+
+        result = evaluate_attested_reference(
+            cid, view, ac.required_role, records, now=now_dt,
+        )
+        subject = URIRef(evidence_iri) if evidence_iri else CMMC[cid]
+        assertion = emit_control_check_assertion(
+            state.ds, subject, CMMC[cid], result, now_iso=state.now,
+        )
+        outcomes[cid] = result.outcome
+        assertions.append(str(assertion))
+
+        picked = next(
+            (a.id for a in records
+             if ac.reference_id in a.covers and cid in a.controls_attested),
+            None,
+        )
+        state.attested_refs[cid] = AttestedRefResult(
+            control_id=cid, reference_id=ac.reference_id, outcome=result.outcome,
+            reason=result.reason,
+            sha256=ev.sha256 if ev else None,
+            git_commit=ev.git_commit if ev else None,
+            git_committed_at=ev.git_committed_at if ev else None,
+            uploaded_by=uploaded_by,
+            upload_sig_ok=doc_evidence.verify_upload_receipt(ev) if ev else False,
+            evidence_iri=evidence_iri, attestation_id=picked,
+        )
 
 
 # ---------------------------------------------------------------------------

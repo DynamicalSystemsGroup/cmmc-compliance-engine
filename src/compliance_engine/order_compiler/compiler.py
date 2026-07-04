@@ -296,18 +296,28 @@ def _emit_order(ds: Dataset, order: Order, att: COPAttestation, *, now=None) -> 
 # Convenience: full front-half run from the fixture
 # ---------------------------------------------------------------------------
 
+REFERENCES_TTL = _REPO_ROOT / "data" / "structural" / "references.ttl"
+
+
 def load_pipeline_dataset(
     *,
     catalog_ttl: Path = CATALOG_TTL,
     tier1_ttl: Path = TIER1_TTL,
     cop_ttl: Path = COP_DRAFT_TTL,
+    references_ttl: Path = REFERENCES_TTL,
 ) -> tuple[Dataset, dict[str, "rl.Obligation"]]:
-    """Build a Dataset with catalog/tier1/COP loaded, and the obligations dict."""
+    """Build a Dataset with catalog/tier1/references/COP loaded, and the obligations dict.
+
+    references.ttl carries the ce:Reference nodes (uri, freshness, lastVerified,
+    custodian) that the attested-reference oracle resolves and freshness-checks for the
+    Track B (policy) controls, so it is loaded into the structural graph alongside tier1."""
     from compliance_engine.pipeline.dataset import create_dataset, load_into
 
     ds = create_dataset()
     load_into(ds, "ontology", catalog_ttl)
     load_into(ds, "structural", tier1_ttl)
+    if Path(references_ttl).is_file():
+        load_into(ds, "structural", references_ttl)
     load_into(ds, "order", cop_ttl)
     obligations = rl.load_obligations(cop_ttl)
     return ds, obligations

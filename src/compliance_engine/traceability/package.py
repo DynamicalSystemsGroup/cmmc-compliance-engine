@@ -129,6 +129,9 @@ def build_audit_package(
             "evidence_backing": row.get("evidence_backing"),
             "evidence_hashes": row.get("evidence_hashes", []),
             "oracle_outcome": row.get("oracle_outcome"),
+            "reference_id": row.get("reference_id"),
+            "git_commit": row.get("git_commit"),
+            "git_committed_at": row.get("git_committed_at"),
             "attestation": {
                 "outcome": att.get("outcome"),
                 "official": att.get("official"),

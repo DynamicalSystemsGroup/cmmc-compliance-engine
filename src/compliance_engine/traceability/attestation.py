@@ -102,6 +102,7 @@ def request_attestation(
     oracle_outcome: URIRef | None = None,
     override_justification: str | None = None,
     override_evidence: str | None = None,
+    document_evidence: URIRef | None = None,
     now: str | None = None,
 ) -> URIRef:
     """Record a Gate-2 attestation for one control. Returns the attestation IRI.
@@ -223,6 +224,11 @@ def request_attestation(
     for ev in query_to_dicts(ds, EVIDENCE_FOR_CONTROL % control_id):
         if ev.get("ev"):
             write.add((att_uri, CE.hasEvidence, URIRef(ev["ev"])))
+    # Track B: link the machine-recorded document evidence (ce:DocumentEvidence) the
+    # human attestation rests on, so the chain control→attestation→document is explicit.
+    if document_evidence is not None:
+        write.add((att_uri, CE.hasEvidence, document_evidence))
+        write.add((att_uri, CE.documentEvidence, document_evidence))
 
     # Affirming Official agent node (label used by the attestation queries).
     write.add((official_uri, RDF.type, PROV.Person))

@@ -756,7 +756,7 @@ def _(factory_ok, factory_state, join, mo, order_ok, short, station, table):
                         P --> PC["4. Policy check<br/>+ residency hard gate"]
                         PC --> A["5. Mock apply<br/>no cloud touched"]
                         A --> E["6. Collect evidence"]
-                        E --> O["7. Run oracles<br/>passed / failed / needsAction"]
+                        E --> O["7. Run oracles<br/>config-check + attested-reference"]
                     """
                 ),
                 mo.hstack(
@@ -835,8 +835,10 @@ def _(mo, reference_rows, sources, station, table):
                 "owns the ground truth for a whole class of evidence — and carries a "
                 "**reference** into it. The reference is a resolvable pointer with a URI, a "
                 "freshness window, a last-verified timestamp, a named custodian (\"where bob "
-                "logs it\"), and a required signer role. The engine runs the *same* four-part "
-                "check on every control:"
+                "logs it\"), and a required signer role. At run time the engine runs this "
+                "four-part check on every Track B (policy) control &mdash; the "
+                "`attested-reference` oracle in `oracles/attested_reference.py`, now wired into "
+                "the Runtime's oracle stage:"
             ),
             mo.hstack(
                 [
@@ -851,12 +853,14 @@ def _(mo, reference_rows, sources, station, table):
                 mo.md(
                     "**Why this is the whole point.** A config-check oracle resolves a "
                     "**machine** control's reference into a cloud API and measures the "
-                    "setting. An attested-reference oracle resolves a **human** control's "
-                    "reference into a document repository, LMS, or HR system and confirms a "
-                    "role signed it. The check is identical; only the source differs. That is "
-                    "how coverage reaches all 110 controls instead of just the "
-                    "machine-measurable ones — without ever pretending a machine "
-                    "measured a policy."
+                    "setting. The attested-reference oracle resolves a **human** control's "
+                    "reference to the actual document, SHA-256 hashes it, captures the git "
+                    "commit that produced it, signs an upload receipt, and confirms the "
+                    "reference is fresh and role-signed. Both run in the Runtime's oracle "
+                    "stage; only the source differs. That is how coverage reaches the policy "
+                    "controls without pretending a machine measured a policy: the human still "
+                    "signs, but the sign-off is now anchored to a specific, hashed, "
+                    "git-tracked document version rather than a bare 'trust me'."
                 ),
                 kind="info",
             ),
@@ -978,9 +982,13 @@ def _(attested, audit_report, bom_result, factory_ok, illustration, io_flow, mo,
                     "### Per-control result (real BOM mapping)\n\n"
                     "The **Evidence backing** column makes the proven-vs-attested split "
                     "concrete per control: **machine** means the sign-off is backed by a "
-                    "passing machine oracle over resolvable evidence (the **Evidence** "
-                    "hash traces to the artifact); **human-only** means no passing machine "
-                    "measurement exists, so the control rests on human judgment; "
+                    "passing config oracle over resolvable evidence (the **Evidence** "
+                    "hash traces to the artifact); **attested-evidenced** means a human "
+                    "sign-off backed by a *machine-recorded document* — the referenced file "
+                    "was resolved, SHA-256 hashed, and carries the git commit that produced it "
+                    "plus a signed upload receipt (this is how the policy controls, like "
+                    "`CA.L2-3.12.4`, are anchored to a real document version); **human-only** "
+                    "means no machine artifact exists, so the control rests on human judgment; "
                     "**override** means the human attested MET over a failed machine check "
                     "(which must carry a written justification and appended evidence)."
                 ),
@@ -1230,8 +1238,8 @@ def _(factory_ok, hash_demo, mo, station):
                     "Watch the fingerprint break when one byte changes",
                 ),
                 mo.md(
-                    f"**Evidence node:** `{hash_demo['node_id']}`\n\n"
-                    f"**Recorded hash:** `{hash_demo['recorded_hash'][:24]}...`\n\n"
+                    f"**Evidence node:** `{hash_demo['ev_id']}`\n\n"
+                    f"**Recorded hash:** `{hash_demo['original_hash'][:24]}...`\n\n"
                     f"**Tampered hash (one byte flipped):** "
                     f"`{hash_demo['tampered_hash'][:24]}...`"
                 ),
@@ -1413,8 +1421,13 @@ def _(mo):
             "artifact is `mock` and every BOM/SSP is **NON-EVIDENTIARY** (not submittable).\n"
             "- **Terraform runs in preview only, with mock providers** — nothing is "
             "deployed, no credentials are used.\n"
-            "- **References resolve against local files and fixtures**, not the live "
-            "authoritative sources (references now carry a version pin + signature field).\n"
+            "- **The attested-reference oracle is wired, over local documents.** For every "
+            "Track B (policy) control the engine resolves the reference to the real document, "
+            "SHA-256 hashes it, captures the git commit that produced it, signs an upload "
+            "receipt, and checks freshness + signer role — a real gate (a stale or missing "
+            "reference drops the control out of MET). The documents are the placeholder "
+            "policies in the repo, not the live authoritative sources, and the signer is the "
+            "local Ed25519 dev key.\n"
             "- **Attestation signing is real but the demo runs unsigned.** The engine signs "
             "and verifies attestation records with Ed25519 (fail-closed on tamper); the demo "
             "uses `sig_algo=none` git-trust, and the production cosign+KMS path is deferred.\n"
@@ -1425,6 +1438,8 @@ def _(mo):
             "- **The SPRS score covers this Order's required set**, not all 110 (Station 12 "
             "shows the full model).\n\n"
             "What is real end to end: full-chain provenance, signed attestations, the "
+            "attested-reference oracle that gates Track B controls on a resolved + hashed + "
+            "git-tracked + role-signed document (the **attested-evidenced** backing), the "
             "append-only tier, and a single signed **audit package** an assessor re-verifies "
             "offline (`ce package` / `ce verify-package`). None of this is hidden — the banner, "
             "the `mock` stamp, and the proven-vs-attested split keep the demonstration honest; "

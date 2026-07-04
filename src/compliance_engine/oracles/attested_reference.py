@@ -58,13 +58,19 @@ class ReferenceView:
     last_verified: datetime | None  # ce:lastVerified (None ⇒ never verified)
     source_system: str = ""       # ce:sourceSystem local name (optional)
     custodian: str = ""           # ce:custodian (optional)
+    resolved_ok: bool | None = None  # did the URI resolve to real content on disk?
+                                  # None ⇒ resolution not attempted (URI-presence only)
 
     def is_resolvable(self) -> bool:
-        """A reference is resolvable if it has a URI. Live resolution (does
-        the URL 200?) is deferred to a resolver plugin per source-system; the
-        engine's job here is to detect a *registered but empty* reference
-        distinctly from a *not-yet-registered* one."""
-        return bool(self.uri.strip())
+        """A reference is resolvable if it has a URI AND, when resolution was
+        attempted (``resolved_ok`` set by the runner after trying to open the
+        file), that attempt succeeded. ``resolved_ok is None`` means resolution
+        was not attempted here, so URI-presence alone stands — this keeps the
+        registered-but-empty check working while letting the run path add real
+        dead-link detection."""
+        if not self.uri.strip():
+            return False
+        return self.resolved_ok is not False
 
 
 def evaluate_attested_reference(

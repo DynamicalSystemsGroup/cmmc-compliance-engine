@@ -251,7 +251,9 @@ class FlexoBackend:
         self.project = project
         self.ref = ref
         # A real endpoint may be passed explicitly or via the environment.
-        self.endpoint = endpoint if endpoint is not None else os.environ.get(_ENDPOINT_ENV)
+        self.endpoint = (
+            endpoint if endpoint is not None else os.environ.get(_ENDPOINT_ENV)
+        )
 
         if store is not None:
             self.store: FakeFlexoStore | None = store
@@ -305,7 +307,9 @@ class FlexoBackend:
         iri = NAMED_GRAPHS.get(layer)
         return URIRef(iri) if iri is not None else None
 
-    def emit_service_node(self, graph: Graph, hosting_org_iri: URIRef | None) -> URIRef | None:
+    def emit_service_node(
+        self, graph: Graph, hosting_org_iri: URIRef | None
+    ) -> URIRef | None:
         """Emit the Flexo service node typed prov:Location + auspices edge.
 
         Flexo MMS is a hosted service, so it emits a stable service node and

@@ -32,8 +32,8 @@ class Source:
     name: str
     iri: str
     fetch_url: str
-    format: str          # rdflib parser format: "turtle", "xml", ...
-    output: str          # filename under ontology/imports/
+    format: str  # rdflib parser format: "turtle", "xml", ...
+    output: str  # filename under ontology/imports/
 
 
 SOURCES: list[Source] = [
