@@ -1,7 +1,9 @@
-name: Build and Publish Walkthrough
+name: Publish to GitHub Pages
+
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -13,35 +15,31 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build-and-publish:
+  build:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v4
-        with:
-          enable-cache: true
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
+      - uses: astral-sh/setup-uv@v6
 
       - name: Install dependencies
         run: uv sync --group notebook --all-groups
 
-      - name: Build walkthrough (marimo export)
-        run: uv run marimo export html notebooks/compliance_walkthrough.py --no-include-code -o walkthrough/index.html
+      - name: Export notebook to HTML
+        run: uv run marimo export html notebooks/compliance_walkthrough.py --no-include-code -o output/index.html
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./walkthrough
+          path: output
 
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
       - name: Deploy to GitHub Pages
-        id: deploy
+        id: deployment
         uses: actions/deploy-pages@v4
