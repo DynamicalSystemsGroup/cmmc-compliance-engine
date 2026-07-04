@@ -245,9 +245,19 @@ uv run ce verify --output-dir output
 # persist the run to the append-only, versioned Flexo tier (offline-simulated;
 # the local registry remains the cache/fallback tier)
 uv run ce demo --store-backend flexo --output-dir output
+
+# render the human audit-package report (a self-contained HTML report, plus a paged
+# PDF when the `weasyprint` binary is installed)
+uv run ce report --output-dir output
+
+# run the FULL 110-control catalog instead of the NV012 22-control slice, and render
+# the report in one step
+uv run ce demo --full --report --output-dir output
 ```
 
-Individual stages are available as subcommands (`compile-order`, `run-factory`, `attest`, `audit`, `bom`, `ssp`) operating against `--output-dir`, alongside `package`, `verify`, and `verify-package`. Run `uv run ce --help` for the full list.
+The demo defaults to the NV012 contract's 22-control slice (the score is computed over that required set). `--full` requires the entire NIST SP 800-171 catalog (all 110), which scores 110/Final over the whole catalog. PDF rendering is optional: `ce report` always writes `report.html`; it also writes `report.pdf` when the [`weasyprint`](https://weasyprint.org) binary is on the PATH, and otherwise tells you to install it or print the HTML.
+
+Individual stages are available as subcommands (`compile-order`, `run-factory`, `attest`, `audit`, `bom`, `ssp`) operating against `--output-dir`, alongside `package`, `verify`, `verify-package`, and `report`. Run `uv run ce --help` for the full list.
 
 Every demonstration run is non-evidentiary: evidence is fixture-backed and provisioning is mock, so every artifact carries a mock evidentiary status and the SSP carries a `NON-EVIDENTIARY` banner.
 
@@ -255,16 +265,16 @@ Every demonstration run is non-evidentiary: evidence is fixture-backed and provi
 
 A completed run writes these artifacts to the directory passed as `--output-dir`:
 
-| Artifact                    | What it is                                                                                                 |
-| --------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| `bom.json`                  | The Bill of Materials: the control-mapping, attestations, and artifact hashes, in canonical JSON.          |
-| `ssp.md`                    | The System Security Plan: the human-readable government document with the per-control traceability matrix. |
-| `audit.md` and `audit.json` | The bidirectional audit plus the SPRS score, POA&M-legality result, and the contradiction list.            |
-| `registry/`                 | The write-once, content-addressed object store with a two-level index (contract to BOM to artifacts).      |
-| `package/`                  | The signed audit package: `manifest.json` (BOM, SSP, audit + SPRS, full-chain provenance, per-control control-to-signed-policy chain, signed-policy inventory), its `manifest.sig`, and copies of the bundled artifacts. Re-verified by `uv run ce verify-package`. |
-| `flexo/`                    | Present only with `--store-backend flexo`: the append-only, versioned store of record (offline-simulated). |
-| `engine.trig`               | The full RDF named-graph dataset for the run.                                                              |
-| `run_state.json`            | The finalized run-state summary, per stage.                                                                |
+| Artifact                    | What it is                                                                                                                                                                                                                                                          |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `bom.json`                  | The Bill of Materials: the control-mapping, attestations, and artifact hashes, in canonical JSON.                                                                                                                                                                   |
+| `ssp.md`                    | The System Security Plan: the human-readable government document with the per-control traceability matrix.                                                                                                                                                          |
+| `audit.md` and `audit.json` | The bidirectional audit plus the SPRS score, POA&M-legality result, and the contradiction list.                                                                                                                                                                     |
+| `registry/`                 | The write-once, content-addressed object store with a two-level index (contract to BOM to artifacts).                                                                                                                                                               |
+| `package/`                  | The signed audit package: `manifest.json` (BOM, SSP, audit + SPRS, full-chain provenance, per-control control-to-signed-policy chain, signed-policy inventory), its `manifest.sig`, and copies of the bundled artifacts. Re-verified by `uv run ce verify-package`. With `ce report` (or `demo --report`) it also holds `report.html` and, when weasyprint is installed, `report.pdf`. |
+| `flexo/`                    | Present only with `--store-backend flexo`: the append-only, versioned store of record (offline-simulated).                                                                                                                                                          |
+| `engine.trig`               | The full RDF named-graph dataset for the run.                                                                                                                                                                                                                       |
+| `run_state.json`            | The finalized run-state summary, per stage.                                                                                                                                                                                                                         |
 
 The SSP is compiled from the same dataset the BOM records, so the document and the machine-readable record cannot disagree. The audit's SPRS score is computed over the Order's required-control set, not the full catalog, because the score reflects the controls the environment is actually responsible for under that contract.
 

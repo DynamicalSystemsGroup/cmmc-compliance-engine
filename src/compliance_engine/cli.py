@@ -205,13 +205,19 @@ class _GapRefused(Exception):
         super().__init__("Gate 1 refused the Order")
 
 
-def _do_compile(ds, obligations, evidence_set: str, now: str):
+def _do_compile(ds, obligations, evidence_set: str, now: str, *, full: bool = False):
     """Compile + attest the COP → Order. For the `gap` scenario, inject a
-    required-but-unclaimed control so Gate 1 refuses (Factory never runs)."""
+    required-but-unclaimed control so Gate 1 refuses (Factory never runs). When
+    `full` is set, add the ALL-110 obligation so the Order requires the entire
+    NIST SP 800-171 catalog rather than the NV012 22-control slice."""
     from compliance_engine.order_compiler import compiler, cop
     from compliance_engine.order_compiler import rule_library as rl
 
     obligations = dict(obligations)
+    if full:
+        obligations["OBL-CMMC-L2-FULL"] = rl.Obligation(
+            "OBL-CMMC-L2-FULL", rl.FRAMEWORK, derives=frozenset({"ALL-110-NIST-800-171"})
+        )
     if evidence_set == "gap":
         obligations["OBL-DEMO-GAP"] = rl.Obligation(
             "OBL-DEMO-GAP", rl.DATA, derives=frozenset({_GAP_CONTROL})
@@ -627,6 +633,27 @@ def verify_package_cmd(output_dir: _OUT = "output") -> None:
         raise typer.Exit(code=1)
 
 
+@app.command("report")
+def report_cmd(output_dir: _OUT = "output") -> None:
+    """Render the audit-package report (a self-contained HTML report, plus a paged PDF
+    when the weasyprint binary is available) from package/manifest.json."""
+    from compliance_engine.documents.report import render_report
+
+    out = _ensure_out(output_dir)
+    pkg_dir = out / "package"
+    if not (pkg_dir / "manifest.json").exists():
+        typer.echo(
+            f"No audit package in {pkg_dir}. Run `uv run ce package --output-dir {out}` "
+            f"first (or `uv run ce demo --output-dir {out}`), then `ce report`."
+        )
+        raise typer.Exit(code=2)
+    res = render_report(pkg_dir)
+    if res.pdf_path:
+        typer.echo(f"Report: {res.html_path} + {res.pdf_path} (via {res.pdf_engine}).")
+    else:
+        typer.echo(f"Report: {res.html_path} (HTML only). {res.note}")
+
+
 @app.command("ssp")
 def ssp_cmd(output_dir: _OUT = "output") -> None:
     """Render the SSP from the persisted dataset (skipped if the SSP compiler is unavailable)."""
@@ -666,6 +693,12 @@ def demo(
     store_backend: Annotated[
         str, typer.Option("--store-backend", help="local | flexo (append-only tier of record).")
     ] = "local",
+    full: Annotated[
+        bool, typer.Option("--full", help="Require the full 110-control catalog, not the NV012 22-control slice.")
+    ] = False,
+    with_report: Annotated[
+        bool, typer.Option("--report", help="Also render the audit-package report (HTML + PDF).")
+    ] = False,
 ) -> None:
     """Run the full NV012 chain: compile-order → run-factory → attest → audit → bom → ssp."""
     from compliance_engine.order_compiler import compiler
@@ -677,9 +710,10 @@ def demo(
 
     # 1. compile + attest Order (shared ds threaded through every stage).
     ds, obligations = compiler.load_pipeline_dataset()
-    typer.echo(f"[demo] evidence-set={evidence_set}")
+    typer.echo(f"[demo] evidence-set={evidence_set}"
+               + (" scope=full-110" if full else ""))
     try:
-        order = _do_compile(ds, obligations, evidence_set, RUN_SEED_TS)
+        order = _do_compile(ds, obligations, evidence_set, RUN_SEED_TS, full=full)
     except _GapRefused as gap:
         typer.echo(
             f"[1/6 compile-order] Gate 1 REFUSED — Order NOT emitted. "
@@ -745,6 +779,13 @@ def demo(
         f"({pkg.sig_algo}, key={pkg.key_id[:12]}) — {len(pkg.manifest['controls'])} "
         f"controls, provenance ok={pkg.manifest['provenance']['sop_adherence_ok']}"
     )
+
+    # 8. Optional: render the human audit-package report (HTML + PDF).
+    if with_report:
+        from compliance_engine.documents.report import render_report
+        res = render_report(pkg.package_dir)
+        pdf = res.pdf_path if res.pdf_path else f"HTML only ({res.note})"
+        typer.echo(f"[report] {res.html_path}" + (f" + {pdf}" if res.pdf_path else f" — {res.note}"))
 
     # Durable append-only tier of record (Flexo), when selected. Local files are
     # always written above, so the local registry remains the cache/fallback tier.
