@@ -1176,14 +1176,19 @@ def _(audit_report, bom_result, coverage, factory_ok, mo, order_ok, short, sprs_
         _ssp_head = "\n".join(ssp_md.splitlines()[:24])
 
         # The arithmetic, spelled out: 110 minus the weight of each not-met control.
+        # Driven by the authoritative SPRS unmet list (which includes contradictions
+        # — a control attested MET over a failed check does NOT count as MET).
         _wt = {c["id"]: int(c.get("weight", 1) or 1) for c in coverage}
+        _contra = set(getattr(_sprs, "contradictions", []) or [])
         _unmet = sorted(
-            ((r.control_id, _wt.get(r.control_id, 1)) for r in bom_result.control_mapping
-             if r.status != "MET"),
+            ((cid, _wt.get(cid, 1)) for cid in _sprs.unmet),
             key=lambda x: -x[1],
         )
         if _unmet:
-            _terms = " ".join(f"− {w} ({cid})" for cid, w in _unmet[:8])
+            _terms = " ".join(
+                f"− {w} ({cid}{' contradiction' if cid in _contra else ''})"
+                for cid, w in _unmet[:8]
+            )
             _more = f" − … ({len(_unmet) - 8} more)" if len(_unmet) > 8 else ""
             _arith = f"SPRS = 110 {_terms}{_more} = {_sprs.score}"
         else:
@@ -1218,13 +1223,15 @@ def _(audit_report, bom_result, coverage, factory_ok, mo, order_ok, short, sprs_
                 ),
                 mo.callout(
                     mo.md(
-                        "**Read both lines together.** A score of 110 / Final with a nonzero "
-                        "contradiction count is **not** a clean result. The score and the "
-                        "contradiction list are kept separate on purpose so a number can "
-                        "never quietly absorb an unexplained human-over-machine override. "
-                        "**POA&M legality:** only 1-point controls may be deferred; deferring "
-                        "a 3- or 5-point control (or one of six excluded 1-pointers) sets "
-                        "`valid_submission=False` regardless of the number."
+                        "**A contradiction has teeth.** A control attested MET over a *failed* "
+                        "machine check with no written override does **not** count as MET: its "
+                        "weight is deducted from the score **and** the submission is marked "
+                        "invalid (`valid_submission=False`). The number can no longer quietly "
+                        "absorb an unexplained human-over-machine override — try the "
+                        "**contradiction** scenario and watch 110/Final become "
+                        "105/Conditional/invalid. **POA&M legality:** only 1-point controls may "
+                        "be deferred; deferring a 3- or 5-point control (or one of six excluded "
+                        "1-pointers) also sets `valid_submission=False`."
                     ),
                     kind="info",
                 ),

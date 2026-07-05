@@ -32,13 +32,15 @@ Two commands do the whole re-verification for you before you drop to the manual
 steps below:
 
 - **`ce verify-package --output-dir <delivered-dir>`** re-verifies the signed
-  **audit package** offline. It checks the manifest's Ed25519 signature, re-hashes
+  **audit package** offline. It checks the manifest's Ed25519 signature — and
+  rejects a downgraded/unsigned `sig_algo=none` signature block (the keyless forgery
+  that would otherwise let a NullSigner "verify" a tampered manifest) — re-hashes
   every bundled artifact (BOM, SSP) against the recorded hashes, and confirms the
   per-control **control → attestation → signed-policy** chain is complete. The
   manifest (`package/manifest.json`, produced by `ce package`) bundles the BOM, the
   SSP, the audit + SPRS verdict, the full-chain provenance (the SOP-adherence
   result), the signed per-control chain, and the signed-policy inventory. A single
-  altered byte, a broken signature, or a broken chain link fails the check.
+  altered byte, a broken/downgraded signature, or a broken chain link fails the check.
 - **`ce verify --output-dir <delivered-dir>`** runs the tamper check (re-hash every
   evidence node — always a hard failure on a mismatch) plus the SHACL closure
   suite. On a NON-EVIDENTIARY (mock) run, closure findings for human-only controls

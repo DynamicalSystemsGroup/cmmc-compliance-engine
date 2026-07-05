@@ -50,13 +50,19 @@ def test_gap_is_refused_at_gate_1_and_names_the_control():
     assert "bom" not in r
 
 
-def test_contradiction_completes_but_flags_one_contradiction():
+def test_contradiction_drops_score_and_invalidates_submission():
     r = _engine.run_pipeline("contradiction")
 
     assert r["refused"] is False
     audit = r["audit"]
-    assert audit.sprs.score == 110
+    # The contradiction has teeth: IA.L2-3.5.3 (weight 5) is attested MET over a
+    # FAILED oracle with no override, so it does NOT count as MET — its weight is
+    # deducted and the submission is invalid. The number can no longer hide it.
     assert len(audit.contradictions) == 1
+    assert audit.sprs.score == 105
+    assert audit.sprs.status == "Conditional"
+    assert audit.sprs.valid_submission is False
+    assert "IA.L2-3.5.3" in audit.sprs.unmet
     # SC.L2-3.13.1 now machine-resolved (data_region criterion).
     assert audit.proven.machine_count == 4
     assert audit.proven.human_count == 18

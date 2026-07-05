@@ -227,17 +227,30 @@ def verify_audit_package(package_dir: Path) -> PackageVerifyResult:
     manifest_bytes = manifest_path.read_bytes()
     sig_obj = json.loads(sig_path.read_text())
 
-    # 1. signature over the manifest bytes
+    # 1. signature over the manifest bytes.
+    #    The algorithm is NOT taken on trust from the signature block: an unsigned
+    #    or downgraded manifest (sig_algo=none / empty) cannot be "verified as
+    #    authentic". Rewriting manifest.sig to {"sig_algo":"none","sig":""} — the
+    #    cheap forgery that needs no key — is rejected here rather than accepted by
+    #    a NullSigner. Only a real cryptographic algorithm can clear this gate.
     signature_ok = False
-    try:
-        signer = get_signer(sig_obj["sig_algo"])
-        signature_ok = signer.verify(
-            manifest_bytes, base64.b64decode(sig_obj["sig"], validate=True)
+    sig_algo = sig_obj.get("sig_algo")
+    if sig_algo in (None, "", "none"):
+        issues.append(
+            "manifest is unsigned (sig_algo=none) — a package cannot be verified as "
+            "authentic without a real signature. If this package was signed, its "
+            "signature block was downgraded (tampering)."
         )
-    except (SigningError, ValueError, KeyError) as exc:
-        issues.append(f"signature error: {exc}")
-    if not signature_ok:
-        issues.append("manifest signature does not verify (tampered or wrong key)")
+    else:
+        try:
+            signer = get_signer(sig_algo)
+            signature_ok = signer.verify(
+                manifest_bytes, base64.b64decode(sig_obj["sig"], validate=True)
+            )
+        except (SigningError, ValueError, KeyError) as exc:
+            issues.append(f"signature error: {exc}")
+        if not signature_ok:
+            issues.append("manifest signature does not verify (tampered or wrong key)")
 
     manifest = json.loads(manifest_bytes)
 

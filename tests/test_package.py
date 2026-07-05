@@ -88,3 +88,37 @@ def test_tampered_manifest_breaks_signature():
     result = verify_audit_package(pkg.package_dir)
     assert not result.ok
     assert not result.signature_ok
+
+
+def test_sig_algo_downgrade_forgery_is_rejected():
+    """Rewriting manifest.sig to sig_algo=none (the keyless forgery) must FAIL —
+    an unsigned/downgraded manifest cannot be 'verified as authentic'."""
+    _out, pkg = _run_and_package()
+    # Forge a better score AND downgrade the signature to a keyless NullSigner.
+    manifest = pkg.package_dir / "manifest.json"
+    data = json.loads(manifest.read_text())
+    data["sprs"]["score"] = 55
+    manifest.write_text(json.dumps(data, indent=2))
+    (pkg.package_dir / "manifest.sig").write_text(
+        json.dumps({"sig": "", "sig_algo": "none", "key_id": "none"})
+    )
+    result = verify_audit_package(pkg.package_dir)
+    assert not result.ok
+    assert not result.signature_ok
+    assert any("unsigned" in i or "sig_algo=none" in i for i in result.issues)
+
+
+def test_ce_verify_package_cli_fails_on_forged_package(tmp_path):
+    """CLI-level: `ce verify-package` exits nonzero on the downgrade forgery."""
+    from typer.testing import CliRunner
+
+    from compliance_engine.cli import app
+
+    _out, pkg = _run_and_package()
+    (pkg.package_dir / "manifest.sig").write_text(
+        json.dumps({"sig": "", "sig_algo": "none", "key_id": "none"})
+    )
+    out_dir = pkg.package_dir.parent
+    result = CliRunner().invoke(app, ["verify-package", "--output-dir", str(out_dir)])
+    assert result.exit_code == 1
+    assert "FAILED" in result.output

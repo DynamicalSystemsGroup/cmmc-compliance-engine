@@ -388,6 +388,12 @@ def compute_sprs(
     """
     met = met_control_ids(ds)
     poam = _poam_control_ids(ds)
+    # A contradiction (MET attested over a failed/absent oracle, no override) is
+    # NOT a legitimate MET: drop it from the scored MET set so its weight is
+    # deducted, and carry it through so the submission is marked invalid.
+    contradictions, _split = contradictions_and_split(ds)
+    contradicted = {c.control for c in contradictions}
+    met = met - contradicted
     source = catalog if catalog is not None else ds
     statuses = sprs.load_control_statuses(
         source,
@@ -397,7 +403,7 @@ def compute_sprs(
     )
     if not statuses:
         return None
-    return sprs.score(statuses)
+    return sprs.score(statuses, contradiction_ids=contradicted)
 
 
 # ---------------------------------------------------------------------------

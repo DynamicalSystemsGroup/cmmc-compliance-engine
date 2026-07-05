@@ -46,18 +46,26 @@ class SprsResult:
     status: str                          # "Final" | "Conditional" | "Ineligible"
     illegal_poam: list[str] = field(default_factory=list)
     unmet: list[str] = field(default_factory=list)
+    contradictions: list[str] = field(default_factory=list)
 
     @property
     def valid_submission(self) -> bool:
-        """A submission with any illegal POA&M item is invalid regardless of score."""
-        return not self.illegal_poam
+        """A submission is invalid if it has any illegal POA&M item OR any
+        unresolved contradiction (a control attested MET over a failed machine
+        check with no written override) — an unexplained override cannot ride
+        inside a passing number."""
+        return not self.illegal_poam and not self.contradictions
 
 
-def score(controls: list[ControlStatus]) -> SprsResult:
-    """Compute SPRS score and enforce POA&M legality.
+def score(controls: list[ControlStatus],
+          *, contradiction_ids: set[str] = frozenset()) -> SprsResult:
+    """Compute SPRS score and enforce POA&M legality + contradiction teeth.
 
-    NOTE: `met` is the human attestation outcome (earl:passed). This function
-    does NOT infer MET from oracle results — only attestation establishes it.
+    `met` is the human attestation outcome (earl:passed); this function does NOT
+    infer MET from oracle results. But a control in `contradiction_ids` — attested
+    MET over a FAILED machine check without a written override — is NOT a legitimate
+    MET: the caller passes those in having already excluded them from each control's
+    `met`, so their weight is deducted here, and they mark the submission invalid.
     """
     deductions = sum(c.weight for c in controls if not c.met)
     s = FINAL - deductions
@@ -70,6 +78,9 @@ def score(controls: list[ControlStatus]) -> SprsResult:
         if c.on_poam and (c.weight > 1 or not c.poam_eligible)
     ]
 
+    scored = {c.control_id for c in controls}
+    contradictions = sorted(cid for cid in contradiction_ids if cid in scored)
+
     if s >= FINAL:
         status = "Final"
     elif s >= CONDITIONAL_FLOOR:
@@ -77,7 +88,8 @@ def score(controls: list[ControlStatus]) -> SprsResult:
     else:
         status = "Ineligible"
 
-    return SprsResult(score=s, status=status, illegal_poam=illegal, unmet=unmet)
+    return SprsResult(score=s, status=status, illegal_poam=illegal, unmet=unmet,
+                      contradictions=contradictions)
 
 
 # --------------------------------------------------------------------------- #
