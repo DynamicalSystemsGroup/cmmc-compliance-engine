@@ -141,7 +141,7 @@ def _(mo, scenario):
         ],
         gap=0.6,
     )
-    return (header,)
+    header
 
 
 @app.cell
@@ -429,7 +429,7 @@ def _(graph_counts, mo):
         ],
         gap=1.0,
     )
-    return (prologue,)
+    prologue
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -469,7 +469,7 @@ def _(mo):
             ),
         ]
     )
-    return (s0_open,)
+    s0_open
 
 
 @app.cell
@@ -515,7 +515,7 @@ def _(mo):
             ),
         ]
     )
-    return (s0_map,)
+    s0_map
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -569,7 +569,7 @@ def _(io_flow, join, mo, obl_rows, order, order_ok, station, table):
             table(_rows),
         ]
     )
-    return (s1,)
+    s1
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -609,7 +609,7 @@ def _(io_flow, mo, required, station):
             ),
         ]
     )
-    return (s2,)
+    s2
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -662,7 +662,7 @@ def _(cop_att, io_flow, mo, station):
             ),
         ]
     )
-    return (s3,)
+    s3
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -728,7 +728,7 @@ def _(g1, mo, station):
             _verdict,
         ]
     )
-    return (s4,)
+    s4
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -780,7 +780,7 @@ def _(io_flow, join, mo, order, order_ok, short, station):
                 mo.md(f"**Modules in this Order:** {_mods}"),
             ]
         )
-    return (s5,)
+    s5
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -883,7 +883,7 @@ def _(factory_ok, factory_state, join, mo, oracle_fig, order_ok, short, station,
                 ),
             ]
         )
-    return (s6,)
+    s6
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -958,7 +958,7 @@ def _(mo, reference_rows, sources, station, table):
             table(_ref_rows, page_size=12),
         ]
     )
-    return (s7,)
+    s7
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1099,7 +1099,7 @@ def _(attested, audit_report, bom_result, factory_ok, illustration, io_flow, mo,
                 mo.md(_map_html),
             ]
         )
-    return (s8,)
+    s8
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1153,7 +1153,7 @@ def _(control_explanation, control_picker, factory_ok, mo, station):
             _body,
         ]
     )
-    return (s8b,)
+    s8b
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1258,7 +1258,7 @@ def _(audit_report, bom_result, coverage, factory_ok, mo, order_ok, short, sprs_
                 mo.accordion({"SSP preview (first 24 lines)": mo.md("```\n" + _ssp_head + "\n```")}),
             ]
         )
-    return (s9,)
+    s9
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1290,7 +1290,7 @@ def _(factory_ok, mo, sprs_rows, table):
             _content,
         ]
     )
-    return (s9_breakdown,)
+    s9_breakdown
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1339,7 +1339,7 @@ def _(factory_ok, illustration, mo, order_ok, station):
             mo.md("_This scenario produced no artifacts to reproduce; the mechanism is shown "
                   "for reference._"), kind="warn"))
     s10 = mo.vstack(_body)
-    return (s10,)
+    s10
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1401,7 +1401,7 @@ def _(factory_ok, hash_demo, mo, station):
                 ),
             ]
         )
-    return (s10b,)
+    s10b
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1450,7 +1450,7 @@ def _(graph_counts, graph_fig, mo, station, table):
             ),
         ]
     )
-    return (s11,)
+    s11
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1549,7 +1549,7 @@ def _(coverage, cov_family, cov_status, coverage_fig, engine, mo, station, table
             table(_score_rows),
         ]
     )
-    return (s12,)
+    s12
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1592,62 +1592,8 @@ def _(mo):
         ),
         kind="neutral",
     )
-    return (footer,)
+    footer
 
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# Assemble the single end-to-end scroll
-# ═══════════════════════════════════════════════════════════════════════════════
-
-@app.cell
-def _(
-    footer,
-    header,
-    mo,
-    prologue,
-    s0_map,
-    s0_open,
-    s1,
-    s10,
-    s10b,
-    s11,
-    s12,
-    s2,
-    s3,
-    s4,
-    s5,
-    s6,
-    s7,
-    s8,
-    s8b,
-    s9,
-    s9_breakdown,
-):
-    mo.vstack(
-        [
-            header,
-            mo.md("---"), s0_open, s0_map,
-            mo.md("---"), prologue,
-            mo.md("---"), s1,
-            mo.md("---"), s2,
-            mo.md("---"), s3,
-            mo.md("---"), s4,
-            mo.md("---"), s5,
-            mo.md("---"), s6,
-            mo.md("---"), s7,
-            mo.md("---"), s8,
-            mo.md("---"), s8b,
-            mo.md("---"), s9,
-            mo.md("---"), s9_breakdown,
-            mo.md("---"), s10,
-            mo.md("---"), s10b,
-            mo.md("---"), s11,
-            mo.md("---"), s12,
-            mo.md("---"), footer,
-        ],
-        gap=1.75,
-    )
-    return
 
 
 if __name__ == "__main__":
